@@ -36,6 +36,14 @@ test_that("Fitted and residuals", {
                  mean(residuals(fm2P,type="pearson")))
     expect_false(mean(residuals(fm2NB,type="response"))==
                  mean(residuals(fm2NB,type="pearson")))
+    rr2 <- function(x) sum(residuals(x,type="pearson")^2)
+    ## test Pearson resids for gaussian, Gamma vs. base-R versions
+    ss <- as.data.frame(state.x77)
+    expect_equal(rr2(glm(Murder~Population,ss,family=gaussian)),
+          rr2(glmmTMB(Murder~Population,ss,family=gaussian)))
+    expect_equal(rr2(glm(Murder~Population,ss,family=Gamma(link="log"))),
+                 rr2(glmmTMB(Murder~scale(Population),ss,
+                             family=Gamma(link="log"))),tol=1e-5)
 })
 
 test_that("Predict", {
@@ -115,7 +123,7 @@ test_that("sigma", {
 })
 
 test_that("confint", {
-    ci <- confint(fm2)
+    ci <- confint(fm2, 1:2, estimate=FALSE)
     expect_equal(ci,
         structure(c(238.406083254105, 7.52295734348693,
                     264.404107485727, 13.4116167530013),
@@ -147,4 +155,16 @@ test_that("simulate", {
 	expect_equal(sm2P, sleepstudy$Reaction, tol=20)
 	expect_equal(sm2G, sleepstudy$Reaction, tol=20)
 	expect_equal(sm2NB, sleepstudy$Reaction, tol=20)
+})
+
+context("simulate consistency with glm/lm")
+test_that("binomial", {
+    y <- cbind(1:10,10)
+    f1 <- glmmTMB(y ~ 1, family=binomial())
+    f2 <- glm    (y ~ 1, family=binomial())
+    set.seed(1)
+    s1 <- simulate(f1, 5)
+    set.seed(1)
+    s2 <- simulate(f2, 5)
+    expect_equal(max(abs(as.matrix(s1) - as.matrix(s2))), 0)
 })

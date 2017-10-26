@@ -23,6 +23,41 @@ test_that("binomial", {
                     radinger_dat)
     mod2 <<- update(mod1,as.logical(presabs)~.)
     expect_equal(predict(mod1),predict(mod2))
+
+    ## Compare 2-column and prop/size specification
+    dd <- data.frame(success=1:10, failure=11:20)
+    dd$size <- rowSums(dd)
+    dd$prop <- local( success / size, dd)
+    mod4 <- glmmTMB(cbind(success,failure)~1,family=binomial,data=dd)
+    mod5 <- glmmTMB(prop~1,weights=size,family=binomial,data=dd)
+    expect_equal( logLik(mod4)     , logLik(mod5) )
+    expect_equal( fixef(mod4)$cond , fixef(mod5)$cond )
+
+    ## Now with extra weights
+    dd$w <- 2
+    mod6 <- glmmTMB(cbind(success,failure)~1,family=binomial,data=dd,weights=w)
+    mod7 <- glmmTMB(prop~1,weights=size*w,family=binomial,data=dd)
+    expect_equal( logLik(mod6)     , logLik(mod7) )
+    expect_equal( fixef(mod6)$cond , fixef(mod7)$cond )
+
+    ## Test TRUE/FALSE specification
+    x <- c(TRUE, TRUE, FALSE)
+    m1 <- glmmTMB(x~1, family=binomial())
+    m2 <- glm    (x~1, family=binomial())
+    expect_equal(
+        as.numeric(logLik(m1)),
+        as.numeric(logLik(m2))
+    )
+    expect_equal(
+        as.numeric(unlist(fixef(m1))),
+        as.numeric(coef(m2))
+    )
+
+    ## Mis-specifications
+    prop <- c(.1, .2, .3)  ## weights=1 => prop * weights non integers
+    expect_warning( glmmTMB(prop~1, family=binomial()) )   ## Warning as glm
+    x <- c(1, 2, 3)        ## weights=1 => x > weights !
+    expect_error  ( glmmTMB(x~1, family=binomial()) )      ## Error as glm
 })
 context("fitting exotic families")
 test_that("beta", {
@@ -89,6 +124,11 @@ test_that("nbinom", {
        disp = structure(1.71242627201796, .Names = "(Intercept)")),
        .Names = c("cond", "zi", "disp"), class = "fixef.glmmTMB"))
 
+
+    ## segfault (GH #248)
+    dd <- data.frame(success=1:10,failure=10)
+    expect_error(glmmTMB(cbind(success,failure)~1,family=nbinom2,data=dd),
+                 "matrix-valued responses are not allowed")
  })
 
 test_that("dbetabinom", {
@@ -108,6 +148,11 @@ test_that("dbetabinom", {
                    sigma(m1)),
                  c(2.1482114,1.0574946,0.7016553,8.3768711),
                  tolerance=1e-5)
+    ## Two-column specification
+    m2 <- glmmTMB(cbind(y, N-y) ~ x + (1|f),
+                  family=betabinomial(),
+                  data=dd)
+    expect_identical(m1$fit, m2$fit)
 })
 
 test_that("truncated", {
@@ -206,4 +251,40 @@ test_that("genpois", {
 	gen1 <<- glmmTMB(y~1, family="genpois", gendat)
 	expect_equal(unname(fixef(gen1)$cond), 2.251292, tol=1e-6)
 	expect_equal(sigma(gen1), 0.235309, tol=1e-6)
+})
+
+test_that("tweedie", {
+    ## Boiled down tweedie:::rtweedie :
+    rtweedie <- function (n, xi = power, mu, phi, power = NULL)
+    {
+        mu <- array(dim = n, mu)
+        if ((power > 1) & (power < 2)) {
+            rt <- array(dim = n, NA)
+            lambda <- mu^(2 - power)/(phi * (2 - power))
+            alpha <- (2 - power)/(1 - power)
+            gam <- phi * (power - 1) * mu^(power - 1)
+            N <- rpois(n, lambda = lambda)
+            for (i in (1:n)) {
+                rt[i] <- sum(rgamma(N[i], shape = -alpha, scale = gam[i]))
+            }
+        } else stop()
+        as.vector(rt)
+    }
+    ## Simulation experiment
+    nobs <- 2000; mu <- 4; phi <- 2; p <- 1.7
+    set.seed(101)
+    y <- rtweedie(nobs, mu=mu, phi=phi, power=p)
+    twm <- glmmTMB(y ~ 1, family=tweedie())
+    ## Check mu
+    expect_equal(unname( exp(fixef(twm)$cond) ),
+                 mu,
+                 tolerance = .1)
+    ## Check phi
+    expect_equal(unname( exp(fixef(twm)$disp) ),
+                 phi,
+                 tolerance = .1)
+    ## Check power
+    expect_equal(unname( plogis(twm$fit$par["thetaf"]) + 1 ),
+                 p,
+                 tolerance = .01)
 })

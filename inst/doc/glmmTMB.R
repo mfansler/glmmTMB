@@ -18,7 +18,7 @@ library("bbmle")    ## for AICtab
 library("ggplot2")
 ## cosmetic
 theme_set(theme_bw()+
-  theme(panel.margin=grid::unit(0,"lines")))
+  theme(panel.spacing=grid::unit(0,"lines")))
 
 ## ----owltransform,warning=FALSE------------------------------------------
 Owls <- transform(Owls,
@@ -69,20 +69,13 @@ fit_zinbinom1_bs <- update(fit_zinbinom1,
 AICtab(fit_zipoisson,fit_zinbinom,fit_zinbinom1,fit_zinbinom1_bs)
 
 ## ----glmmTMBnbinomhfit,cache=TRUE----------------------------------------
-fit_hnbinom1A <- update(fit_zinbinom1_bs,
-                        ziformula=~0,
-                        data=subset(Owls,NCalls>0),
+fit_hnbinom1 <-  update(fit_zinbinom1_bs,
+                        ziformula=~.,
+                        data=Owls,
                         family=list(family="truncated_nbinom1",link="log"))
 
-## ----glmmTMBnbinomhfit2,cache=TRUE---------------------------------------
-fit_hnbinom1B <- update(fit_zinbinom1_bs,
-                        ziformula=~0,
-                        (NCalls>0) ~ .,
-                        family=binomial)
-
 ## ----hurdle_AIC----------------------------------------------------------
-AIC(fit_hnbinom1A)+AIC(fit_hnbinom1B)
-AIC(fit_zinbinom1_bs)
+AICtab(fit_zipoisson,fit_zinbinom,fit_zinbinom1,fit_zinbinom1_bs,fit_hnbinom1)
 
 ## ----contraception_sum,echo=FALSE----------------------------------------
 data("Contraception",package="mlmRev")

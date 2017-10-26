@@ -1,7 +1,7 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 0.1.1
-Date: 2017-1-30
+Version: 0.1.4
+Date: 2017-10-25
 Authors@R: c(person("Arni","Magnusson",role="aut"),
 	    person("Hans","Skaug",role="aut"),
 	    person("Anders","Nielsen",role="aut"),
@@ -21,24 +21,25 @@ Description: Fit linear and generalized linear mixed models with various
 License: AGPL-3
 Imports: methods, TMB (>= 1.7.6), lme4 (>= 1.1-10), Matrix, nlme
 LinkingTo: TMB, RcppEigen
-Suggests: knitr, testthat, MASS, lattice, ggplot2, mlmRev, bbmle, pscl,
-        MCMCpack, coda, reshape2
+Suggests: knitr, testthat, MASS, lattice, ggplot2, mlmRev, bbmle (>=
+        1.0.19), pscl, MCMCpack, coda, reshape2
 VignetteBuilder: knitr
 URL: https://github.com/glmmTMB
 LazyData: TRUE
 BugReports: https://github.com/glmmTMB/glmmTMB/issues
-RoxygenNote: 6.0.1
+RoxygenNote: 6.0.1.9000
 NeedsCompilation: yes
-Packaged: 2017-02-19 19:15:52 UTC; molliebrooks1
+Packaged: 2017-10-25 20:52:44 UTC; molliebrooks1
 Author: Arni Magnusson [aut],
-  Hans Skaug [aut],
-  Anders Nielsen [aut],
-  Casper Berg [aut],
-  Kasper Kristensen [aut],
-  Martin Maechler [aut],
-  Koen van Bentham [aut],
-  Ben Bolker [aut],
-  Mollie Brooks [aut, cre]
+    Hans Skaug [aut],
+    Anders Nielsen [aut],
+    Casper Berg [aut],
+    Kasper Kristensen [aut],
+    Martin Maechler [aut],
+    Koen van Bentham [aut],
+    Ben Bolker [aut],
+    Mollie Brooks [aut, cre]
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
+Encoding: UTF-8
 Repository: CRAN
-Date/Publication: 2017-02-20 15:23:16
+Date/Publication: 2017-10-26 20:52:22 UTC

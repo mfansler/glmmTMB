@@ -1,5 +1,5 @@
-#define TMB_LIB_INIT R_init_glmmTMB
 #include <TMB.hpp>
+#include "init.h"
 
 namespace glmmtmb{
   template<class Type>
@@ -104,6 +104,48 @@ namespace glmmtmb{
     return logit_pnorm(tx)[0];
   }
 
+  /* Calculate variance in compois family using
+
+     V(X) = (logZ)''(loglambda)
+
+  */
+  double compois_calc_var(double mean, double nu){
+    using atomic::compois_utils::calc_loglambda;
+    using atomic::compois_utils::calc_logZ;
+    double loglambda = calc_loglambda(log(mean), nu);
+    typedef atomic::tiny_ad::variable<2, 1, double> ADdouble;
+    ADdouble loglambda_ (loglambda, 0);
+    ADdouble ans = calc_logZ<ADdouble>(loglambda_, nu);
+    return ans.getDeriv()[0];
+  }
+
+  /* Simulate from tweedie distribution */
+  template<class Type>
+  Type rtweedie(Type mu_, Type phi_, Type p_) {
+    double mu = asDouble(mu_);
+    double phi = asDouble(phi_);
+    double p = asDouble(p_);
+    // Copied from R function tweedie::rtweedie
+    double lambda = pow(mu, 2. - p) / (phi * (2. - p));
+    double alpha  = (2. - p) / (1. - p);
+    double gam = phi * (p - 1.) * pow(mu, p - 1.);
+    int N = (int) rpois(lambda);
+    double ans = rgamma(N, -alpha /* shape */, gam /* scale */).sum();
+    return ans;
+  }
+}
+
+/* Interface to compois variance */
+extern "C" {
+  SEXP compois_calc_var(SEXP mean, SEXP nu) {
+    if (LENGTH(mean) != LENGTH(nu))
+      error("'mean' and 'nu' must be vectors of same length.");
+    SEXP ans = PROTECT(allocVector(REALSXP, LENGTH(mean)));
+    for(int i=0; i<LENGTH(mean); i++)
+      REAL(ans)[i] = glmmtmb::compois_calc_var(REAL(mean)[i], REAL(nu)[i]);
+    UNPROTECT(1);
+    return ans;
+  }
 }
 
 /* Quantile functions needed to simulate from truncated distributions */
@@ -513,6 +555,9 @@ Type objective_function<Type>::operator() ()
   PARAMETER_VECTOR(theta);
   PARAMETER_VECTOR(thetazi);
 
+  // Extra family specific parameters (e.g. tweedie)
+  PARAMETER_VECTOR(thetaf);
+
   DATA_INTEGER(family);
   DATA_INTEGER(link);
 
@@ -521,6 +566,9 @@ Type objective_function<Type>::operator() ()
   bool zi_flag = (betazi.size() > 0);
   DATA_INTEGER(doPredict);
   DATA_IVECTOR(whichPredict);
+
+  // One-Step-Ahead (OSA) residuals
+  DATA_VECTOR_INDICATOR(keep, yobs);
 
   // Joint negative log-likelihood
   Type jnll = 0;
@@ -557,7 +605,7 @@ Type objective_function<Type>::operator() ()
         break;
       case binomial_family:
         s1 = logit_inverse_linkfun(eta(i), link); // logit(p)
-        tmp_loglik = dbinom_robust(yobs(i) * weights(i), weights(i), s1, true);
+        tmp_loglik = dbinom_robust(yobs(i), weights(i), s1, true);
         SIMULATE{yobs(i) = rbinom(weights(i), mu(i));}
         break;
       case Gamma_family:
@@ -576,8 +624,10 @@ Type objective_function<Type>::operator() ()
       case betabinomial_family:
         s1 = mu(i)*phi(i); // s1 = mu(i) * mu(i) / phi(i);
         s2 = (Type(1)-mu(i))*phi(i); // phi(i) / mu(i);
-        tmp_loglik = glmmtmb::dbetabinom(yobs(i) * weights(i), s1, s2, weights(i), true);
-        SIMULATE{yobs(i) = 0;}//TODO: fill in when rbetabinomial is added to TMB
+        tmp_loglik = glmmtmb::dbetabinom(yobs(i), s1, s2, weights(i), true);
+        SIMULATE {
+          yobs(i) = rbinom(weights(i), rbeta(s1, s2) );
+        }
         break;
       case nbinom1_family:
       case truncated_nbinom1_family:
@@ -659,6 +709,15 @@ Type objective_function<Type>::operator() ()
         tmp_loglik = dcompois2(yobs(i), s1, s2, true);
         SIMULATE{yobs(i)=rcompois2(mu(i), 1/phi(i));}
         break;
+      case tweedie_family:
+        s1 = mu(i);  // mean
+        s2 = phi(i); // phi
+        s3 = invlogit(thetaf(0)) + Type(1); // p, 1<p<2
+        tmp_loglik = dtweedie(yobs(i), s1, s2, s3, true);
+        SIMULATE {
+          yobs(i) = glmmtmb::rtweedie(s1, s2, s3);
+        }
+        break;
       default:
         error("Family not implemented!");
       } // End switch
@@ -681,7 +740,7 @@ Type objective_function<Type>::operator() ()
       }
 
       // Add up
-      jnll -= tmp_loglik;
+      jnll -= keep(i) * tmp_loglik;
     }
   }
 
@@ -709,7 +768,11 @@ Type objective_function<Type>::operator() ()
   REPORT(sd);
   REPORT(corrzi);
   REPORT(sdzi);
-  SIMULATE{ REPORT(yobs);}
+  SIMULATE {
+    REPORT(yobs);
+    REPORT(b);
+    REPORT(bzi);
+  }
   // For predict
   if(zi_flag) {
     switch(ziPredictCode){

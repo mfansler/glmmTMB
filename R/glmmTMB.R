@@ -2,49 +2,60 @@
 ##' @param formula conditional formula
 ##' @param ziformula zero-inflation formula
 ##' @param dispformula dispersion formula
+##' @param combForm combined formula
 ##' @param mf call to model frame
 ##' @param fr frame
 ##' @param yobs observed y
+##' @param respCol response column
 ##' @param offset offset
 ##' @param weights weights
-##' @param family character
-##' @param link character
+##' @param family family object
+##' @param se (logical) compute standard error?
+##' @param call original \code{glmmTMB} call
+##' @param verbose verbosity setting from original \code{glmmTMB} call
 ##' @param ziPredictCode zero-inflation code
 ##' @param doPredict flag to enable sds of predictions
 ##' @param whichPredict which observations in model frame represent predictions
 ##' @keywords internal
 ##' @importFrom stats model.offset
 mkTMBStruc <- function(formula, ziformula, dispformula,
+                       combForm,
                        mf, fr,
-                       yobs, offset, weights,
-                       family, link,
+                       yobs,
+                       respCol,
+                       offset, weights,
+                       family,
+                       se=NULL,
+                       call=NULL,
+                       verbose=NULL,
                        ziPredictCode="corrected",
                        doPredict=0,
                        whichPredict=integer(0)) {
 
     ## Handle ~0 dispersion for gaussian family.
     mapArg <- NULL
-    if ( usesDispersion(family) && (dispformula == ~0) ) {
-        if (family != "gaussian")
+    # family$family contains the *name* of the family
+    if ( usesDispersion(family$family) && (dispformula == ~0) ) {
+        if (family$family != "gaussian")
             stop("~0 dispersion not implemented for ",
-                 sQuote(family),
+                 sQuote(family$family),
                  " family")
         ## FIXME: Depending on the final estimates, we should somehow
         ## check that this fixed dispersion is small enough.
         betad_init <- log( sqrt( .Machine$double.eps ) )
-        dispformula <- ~1
+        dispformula[] <- ~1
         mapArg <- list(betad = factor(NA)) ## Fix betad
     } else {
         betad_init <- 0
     }
 
     ## Ignore 'dispformula' argument for non-dispersion families.
-    if ( ! usesDispersion(family) ) {
+    if ( ! usesDispersion(family$family) ) {
         ## if ( dispformula != ~0 &&
         ##      dispformula != ~1 )
         ##     warning(sprintf("dispersion parameter ignored for family %s",
         ##                     sQuote(family)))
-        dispformula <- ~0
+        dispformula[] <- ~0
     }
 
     condList  <- getXReTrms(formula, mf, fr)
@@ -65,8 +76,23 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
   if (is.null(offset <- model.offset(fr)))
       offset <- rep(0,nobs)
 
-  if (is.null(weights <- fr[["(weights)"]]))
-    weights <- rep(1,nobs)
+  ## FIXME (KK): I don't know why the original code looks for
+  ## 'weights' in 'fr':
+  ##
+  ##    if (is.null(weights <- fr[["(weights)"]]))
+  ##        weights <- rep(1, nobs)
+  ##
+  ## Just in case this is still relevant here's a workaround:
+  if (is.null(weights)) weights <- fr[["(weights)"]]
+  ## Still NULL ?
+  if (is.null(weights)) weights <- rep(1, nobs)
+
+  ## binomial family: At this point we know that (yobs, weights) are
+  ## (proportions, size) as output from binomial()$initialize.
+  ## On the C++ side 'yobs' must be the actual observations (counts).
+  if ( binomialType(family$family) ) {
+    yobs <- weights * yobs
+  }
 
   data.tmb <- namedList(
     X = condList$X,
@@ -76,13 +102,14 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
     Xd = dispList$X,
     ## Zdisp=dispList$Z,
     yobs,
+    respCol,
     offset,
     weights,
     ## information about random effects structure
     terms = condReStruc,
     termszi = ziReStruc,
-    family = .valid_family[family],
-    link = .valid_link[link],
+    family = .valid_family[family$family],
+    link = .valid_link[family$link],
     ziPredictCode = .valid_zipredictcode[ziPredictCode],
     doPredict = doPredict,
     whichPredict = whichPredict
@@ -92,22 +119,29 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
 
   ## safer initialization for link functions that might give
   ##  illegal predictions for certain families
-  beta_init <-  if (link %in% c("identity","inverse")) 1 else 0
+  beta_init <-  if (family$link %in% c("identity","inverse")) 1 else 0
+
+  ## Extra family specific parameters
+  numThetaFamily <- (family$family == "tweedie")
 
   parameters <- with(data.tmb,
                      list(
                        beta    = rep(beta_init, ncol(X)),
-                       b       = rep(beta_init, ncol(Z)),
                        betazi  = rep(0, ncol(Xzi)),
+                       b       = rep(beta_init, ncol(Z)),
                        bzi     = rep(0, ncol(Zzi)),
+                       betad   = rep(betad_init, ncol(Xd)),
                        theta   = rep(0, sum(getVal(condReStruc,"blockNumTheta"))),
                        thetazi = rep(0, sum(getVal(ziReStruc,  "blockNumTheta"))),
-                       betad   = rep(betad_init, ncol(Xd))
+                       thetaf  = rep(0, numThetaFamily)
                      ))
   randomArg <- c(if(ncol(data.tmb$Z)   > 0) "b",
                  if(ncol(data.tmb$Zzi) > 0) "bzi")
-  namedList(data.tmb, parameters, mapArg, randomArg, grpVar,
-            condList, ziList, dispList, condReStruc, ziReStruc)
+  return(namedList(data.tmb, parameters, mapArg, randomArg, grpVar,
+            condList, ziList, dispList, condReStruc, ziReStruc,
+            family, respCol,
+            allForm=namedList(combForm,formula,ziformula,dispformula),
+            fr, se, call, verbose))
 }
 
 ##' Create X and random effect terms from formula
@@ -315,17 +349,24 @@ okWeights <- function(x) {
   ## x %in% .okWeightFamilies
 }	
 
+## Families for which binomial()$initialize is used
+.binomialFamilies <- c("binomial", "betabinomial")
+binomialType <- function(x) {
+  !is.na(match(x, .binomialFamilies))
+}
+
 ##' Fit models with TMB
 ##' @param formula combined fixed and random effects formula, following lme4
 ##'     syntax
 ##' @param data data frame
 ##' @param family family (variance/link function) information; see \code{\link{family}} for
-##' details.  As in \code{\link{glm}}, \code{family} can be specified as (1) a character string
+##' generic family details or \code{\link{family_glmmTMB}} for details of \code{glmmTMB} specific families.  
+##' As in \code{\link{glm}}, \code{family} can be specified as (1) a character string
 ##' referencing an existing family-construction function (e.g. \sQuote{"binomial"}); (2) a symbol referencing
 ##' such a function (\sQuote{binomial}); or (3) the output of such a function (\sQuote{binomial()}).
 ##' In addition, for families such as \code{betabinomial} that are special to \code{glmmTMB}, family
 ##' can be specified as (4) a list comprising the name of the distribution and the link function
-##' (\sQuote{list(family="binomial",link="logit")}).
+##' (\sQuote{list(family="binomial", link="logit")}). However, the first 3 options are preferable.
 ##' @param ziformula a \emph{one-sided} (i.e., no response variable) formula for
 ##'     zero-inflation combining fixed and random effects:
 ##' the default \code{~0} specifies no zero-inflation.
@@ -339,13 +380,14 @@ okWeights <- function(x) {
 ##'     The argument is ignored for families that do not have a dispersion parameter.
 ##'     For an explanation of the dispersion parameter for each family, see (\code{\link{sigma}}).
 ##'     The dispersion model uses a log link. 
-##'     In Gaussian mixed models, \code{dispformula=~0} fixes the paramameter to be 0, forcing variance into the random effects.
+##'     In Gaussian mixed models, \code{dispformula=~0} fixes the parameter to be 0, forcing variance into the random effects.
 ##' @param weights weights, as in \code{glm}. Only implemented for binomial and betabinomial families.
 ##' @param offset offset
 ##' @param se whether to return standard errors
 ##' @param verbose logical indicating if some progress indication should be printed to the console.
-##' @param debug whether to return the preprocessed data and parameter objects,
+##' @param doFit whether to fit the full model, or (if FALSE) return the preprocessed data and parameter objects,
 ##'     without fitting the model
+##' @param control control parameters; see \code{\link{glmmTMBControl}}.
 ##' @importFrom stats gaussian binomial poisson nlminb as.formula terms model.weights
 ##' @importFrom lme4 subbars findbars mkReTrms nobars
 ##' @importFrom Matrix t
@@ -353,9 +395,25 @@ okWeights <- function(x) {
 ##' @details
 ##' \itemize{
 ##' \item binomial models with more than one trial (i.e., not binary/Bernoulli)
-##' must be specified in the form \code{prob ~ ..., weights = N} rather than in
+##' can either be specified in the form \code{prob ~ ..., weights = N} or in
 ##' the more typical two-column matrix (\code{cbind(successes,failures)~...}) form.
 ##' \item in all cases \code{glmmTMB} returns maximum likelihood estimates - random effects variance-covariance matrices are not REML (so use \code{REML=FALSE} when comparing with \code{lme4::lmer}), and residual standard deviations (\code{\link{sigma}}) are not bias-corrected. Because the \code{\link{df.residual}} method for \code{glmmTMB} currently counts the dispersion parameter, one would need to multiply by \code{sqrt(nobs(fit)/(1+df.residual(fit)))} when comparing with \code{lm} ...
+##' \item by default, vector-valued random effects are fitted with
+##' unstructured (general positive definite) variance-covariance matrices.
+##' Structured variance-covariance matrices can be specified in
+##' the form \code{struc(terms|group)}, where \code{struc} is one
+##' of
+##' \itemize{
+##' \item \code{diag} (diagonal, heterogeneous variance)
+##' \item \code{ar1} (autoregressive order-1, homogeneous variance)
+##' \item \code{cs} (compound symmetric, heterogeneous variance)
+##' \item \code{ou} (* Ornstein-Uhlenbeck, homogeneous variance)
+##' \item \code{exp} (* exponential autocorrelation)
+##' \item \code{gau} (* Gaussian autocorrelation)
+##' \item \code{mat} (* Matérn process correlation)
+##' \item \code{toep} (* Toeplitz)
+##' }
+##' (note structures marked with * are experimental/untested)
 ##' }
 ##' @useDynLib glmmTMB
 ##' @importFrom stats update
@@ -374,7 +432,7 @@ okWeights <- function(x) {
 ##' ## Hurdle Poisson model
 ##' (m3 <- glmmTMB(count~spp + mined + (1|site), 
 ##'   zi=~spp + mined, 
-##'   family=list(family="truncated_poisson", link="log"), Salamanders))
+##'   family=truncated_poisson, Salamanders))
 ##' 
 ##' ## Binomial model
 ##' data(cbpp, package="lme4")
@@ -411,7 +469,8 @@ glmmTMB <- function (
     offset=NULL,
     se=TRUE,
     verbose=FALSE,
-    debug=FALSE
+    doFit=TRUE,
+    control=glmmTMBControl()
     )
 {
 
@@ -442,7 +501,6 @@ glmmTMB <- function (
 
     ## extract family and link information from family object
     link <- family$link
-    familyStr <- family$family
 
     ## lme4 function for warning about unused arguments in ...
     ## ignoreArgs <- c("start","verbose","devFunOnly",
@@ -504,7 +562,7 @@ glmmTMB <- function (
     nobs <- nrow(fr)
     weights <- as.vector(model.weights(fr))
 
-    if(!is.null(weights) & !okWeights(familyStr)) {
+    if(!is.null(weights) & !okWeights(family$family)) {
       stop("'weights' are not available for this family. See `dispformula` instead.")
     }
 
@@ -522,13 +580,18 @@ glmmTMB <- function (
     ## extract response variable
     ## (name *must* be 'y' to match guts of family()$initialize
     y <- fr[,respCol]
-
+    if (is.matrix(y)) {
+        if ( ! binomialType(family$family) ) {
+            stop("matrix-valued responses are not allowed")
+        }
+    }
+    
     ## (1) transform 'y' appropriately for binomial models
     ##     (2-column matrix, factor, logical -> numeric)
     ## (2) warn on non-integer values
     etastart <- start <- mustart <- NULL
     if (!is.null(family$initialize)) {
-        eval(family$initialize)
+        eval(family$initialize)  ## <--- NOTE: Modifies 'y' and 'weights' !!!
     }
     ## binomial()$initialize does *not* coerce logical to numeric ...
     ##  may cause downstream problems, e.g. with predict()
@@ -540,31 +603,142 @@ glmmTMB <- function (
 
     TMBStruc <- 
         mkTMBStruc(formula, ziformula, dispformula,
+                   combForm,
                    mf, fr,
-                   yobs=y, offset, weights,
-                   familyStr, link)
+                   yobs=y,
+                   respCol,
+                   offset,
+                   weights,
+                   family=family,
+                   se=se,
+                   call=call,
+                   verbose=verbose)
+
+    ## Allow for adaptive control parameters
+    TMBStruc$control <- lapply(control, eval, envir=TMBStruc)
 
     ## short-circuit
-    if(debug) return(TMBStruc)
+    if (!doFit) return(TMBStruc)
+
+    ## pack all the bits we will need for fitTMB
+    res <- fitTMB(TMBStruc)
+    return(res)
+}
+
+##' Control parameters for glmmTMB optimization
+##' @param optCtrl Passed as argument \code{control} to \code{nlminb}.
+##' @param profile Logical; Experimental option to improve speed and
+##'                robustness when a model has many fixed effects
+##' @details
+##' The general non-linear optimizer \code{nlminb} is used by
+##' \code{\link{glmmTMB}} for parameter estimation. It may sometimes be
+##' necessary to tweak some tolerances in order to make a model
+##' converge. For instance, the warning \sQuote{iteration limit reached
+##' without convergence} may be fixed by increasing the number of
+##' iterations using something like
+##'
+##' \code{glmmTMBControl(optCtrl=list(iter.max=1e3,eval.max=1e3))}.
+##'
+##' The argument \code{profile} allows \code{glmmTMB} to use some special
+##' properties of the optimization problem in order to speed up estimation
+##' in cases with many fixed effects. Enable this option using
+##'
+##' \code{glmmTMBControl(profile=TRUE)}.
+##'
+##' Control parameters may depend on the model specification, because each
+##' control component is evaluated inside \code{TMBStruc}, the output
+##' of \code{mkTMBStruc}.  To specify that \code{profile} should be
+##' enabled for more than 5 fixed effects one can use
+##'
+##' \code{glmmTMBControl(profile=quote(length(parameters$beta)>=5))}.
+##' @export
+glmmTMBControl <- function(optCtrl=list(iter.max=300, eval.max=400), 
+                           profile=FALSE) {
+    ## FIXME: Change defaults - add heuristic to decide if 'profile' is beneficial.
+    ##        Something like
+    ## profile = (length(parameters$beta) >= 2) &&
+    ##           (family$family != "tweedie")
+    ## (TMB tweedie derivatives currently slow)
+    namedList(optCtrl, profile)
+}
+
+fitTMB <- function(TMBStruc) {
+
+    control <- TMBStruc$control
+
+    if (control $ profile) {
+        obj <- with(TMBStruc,
+                    MakeADFun(data.tmb,
+                              parameters,
+                              map = mapArg,
+                              random = randomArg,
+                              profile = "beta",
+                              silent = !verbose,
+                              DLL = "glmmTMB"))
+        optTime <- system.time(fit <- with(obj,
+                                           if( length(par) )
+                                               nlminb(start = par, objective = fn, gradient = gr,
+                                                      control = control $ optCtrl)
+                                           else
+                                               list( par=par, objective=fn(par) )
+                                           ) )
+
+        sdr <- sdreport(obj, getJointPrecision=TRUE)
+        ## FIXME: pdHess can be FALSE
+        ##        * Happens for boundary fits (e.g. dispersion close to 0 - see 'spline' example)
+        ##        * Option 1: Fall back to old method
+        ##        * Option 2: Skip Newton iterations
+        parnames <- names(obj$env$par)
+        Q <- sdr$jointPrecision; dimnames(Q) <- list(parnames, parnames)
+        whichNotRandom <- which( ! parnames %in% c("b", "bzi") )
+        Qm <- GMRFmarginal(Q, whichNotRandom)
+        h <- as.matrix(Qm) ## Hessian of *all* (non-random) parameters
+        TMBStruc$parameters <- obj$env$parList(fit$par, obj$env$last.par.best)
+        ## Build object
+        obj <- with(TMBStruc,
+                    MakeADFun(data.tmb,
+                              parameters,
+                              map = mapArg,
+                              random = randomArg,
+                              profile = NULL,
+                              silent = !verbose,
+                              DLL = "glmmTMB"))
+        ## Run up to 5 Newton iterations with fixed (off-mode) hessian
+        par <- obj$par; iter <- 0
+        if (sdr$pdHess) {
+            for (iter in seq_len(5)) { ## FIXME: Make configurable ?
+                g <- as.numeric( obj$gr(par) )
+                if (max(abs(g)) < 1e-10) break; ## FIXME: Make configurable ?
+                par <- par - solve(h, g)
+            }
+        }
+        fit$par <- par
+        fit$objective <- obj$fn(par)
+        fit$newton.steps <- iter
+    } else {
 
     obj <- with(TMBStruc,
                 MakeADFun(data.tmb,
                      parameters,
                      map = mapArg,
                      random = randomArg,
-                     profile = NULL, # TODO: Optionally "beta"
+                     profile = NULL,
                      silent = !verbose,
                      DLL = "glmmTMB"))
 
     optTime <- system.time(fit <- with(obj, nlminb(start=par, objective=fn,
-                                                   gradient=gr)))
+                                                   gradient=gr, control=control$optCtrl)))
+    }
 
     fit$parfull <- obj$env$last.par.best ## This is in sync with fit$par
 
     fitted <- NULL
 
-    if (se) {
-        sdr <- sdreport(obj)
+    if (TMBStruc$se) {
+        if(control$profile)
+            sdr <- sdreport(obj, hessian.fixed=h)
+        else
+            sdr <- sdreport(obj)
         ## FIXME: assign original rownames to fitted?
     } else {
         sdr <- NULL
@@ -584,21 +758,29 @@ glmmTMB <- function (
       }
     }
 
+    if ( !is.null(fit$convergence) && fit$convergence != 0)
+        warning("Model convergence problem; ",
+                fit$message, ". ",
+                "See vignette('troubleshooting')")
+
     modelInfo <- with(TMBStruc,
-                      namedList(nobs, respCol, grpVar, familyStr, family, link,
+                      namedList(nobs=nrow(data.tmb$X),
+                                respCol,
+                                grpVar,
+                                family,
                                 ## FIXME:apply condList -> cond earlier?
                                 reTrms = lapply(list(cond=condList, zi=ziList),
                                                 stripReTrms),
                                 reStruc = namedList(condReStruc, ziReStruc),
-                                allForm = namedList(combForm, formula,
-                                                    ziformula, dispformula)))
+                                allForm))
     ## FIXME: are we including obj and frame or not?
     ##  may want model= argument as in lm() to exclude big stuff from the fit
     ## If we don't include obj we need to get the basic info out
     ##    and provide a way to regenerate it as necessary
     ## If we don't include frame, then we may have difficulty
     ##    with predict() in its current form
-    structure(namedList(obj, fit, sdr, call, frame=fr, modelInfo,
+    structure(namedList(obj, fit, sdr, call=TMBStruc$call,
+                        frame=TMBStruc$fr, modelInfo,
                         fitted),
               class = "glmmTMB")
 }

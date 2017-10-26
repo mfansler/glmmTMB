@@ -6,7 +6,7 @@
 \usage{
 glmmTMB(formula, data = NULL, family = gaussian(), ziformula = ~0,
   dispformula = ~1, weights = NULL, offset = NULL, se = TRUE,
-  verbose = FALSE, debug = FALSE)
+  verbose = FALSE, doFit = TRUE, control = glmmTMBControl())
 }
 \arguments{
 \item{formula}{combined fixed and random effects formula, following lme4
@@ -15,12 +15,13 @@ syntax}
 \item{data}{data frame}
 
 \item{family}{family (variance/link function) information; see \code{\link{family}} for
-details.  As in \code{\link{glm}}, \code{family} can be specified as (1) a character string
+generic family details or \code{\link{family_glmmTMB}} for details of \code{glmmTMB} specific families.  
+As in \code{\link{glm}}, \code{family} can be specified as (1) a character string
 referencing an existing family-construction function (e.g. \sQuote{"binomial"}); (2) a symbol referencing
 such a function (\sQuote{binomial}); or (3) the output of such a function (\sQuote{binomial()}).
 In addition, for families such as \code{betabinomial} that are special to \code{glmmTMB}, family
 can be specified as (4) a list comprising the name of the distribution and the link function
-(\sQuote{list(family="binomial",link="logit")}).}
+(\sQuote{list(family="binomial", link="logit")}). However, the first 3 options are preferable.}
 
 \item{ziformula}{a \emph{one-sided} (i.e., no response variable) formula for
     zero-inflation combining fixed and random effects:
@@ -36,7 +37,7 @@ default \code{~1} specifies the standard dispersion given any family.
 The argument is ignored for families that do not have a dispersion parameter.
 For an explanation of the dispersion parameter for each family, see (\code{\link{sigma}}).
 The dispersion model uses a log link. 
-In Gaussian mixed models, \code{dispformula=~0} fixes the paramameter to be 0, forcing variance into the random effects.}
+In Gaussian mixed models, \code{dispformula=~0} fixes the parameter to be 0, forcing variance into the random effects.}
 
 \item{weights}{weights, as in \code{glm}. Only implemented for binomial and betabinomial families.}
 
@@ -46,8 +47,10 @@ In Gaussian mixed models, \code{dispformula=~0} fixes the paramameter to be 0, f
 
 \item{verbose}{logical indicating if some progress indication should be printed to the console.}
 
-\item{debug}{whether to return the preprocessed data and parameter objects,
+\item{doFit}{whether to fit the full model, or (if FALSE) return the preprocessed data and parameter objects,
 without fitting the model}
+
+\item{control}{control parameters; see \code{\link{glmmTMBControl}}.}
 }
 \description{
 Fit models with TMB
@@ -55,9 +58,25 @@ Fit models with TMB
 \details{
 \itemize{
 \item binomial models with more than one trial (i.e., not binary/Bernoulli)
-must be specified in the form \code{prob ~ ..., weights = N} rather than in
+can either be specified in the form \code{prob ~ ..., weights = N} or in
 the more typical two-column matrix (\code{cbind(successes,failures)~...}) form.
 \item in all cases \code{glmmTMB} returns maximum likelihood estimates - random effects variance-covariance matrices are not REML (so use \code{REML=FALSE} when comparing with \code{lme4::lmer}), and residual standard deviations (\code{\link{sigma}}) are not bias-corrected. Because the \code{\link{df.residual}} method for \code{glmmTMB} currently counts the dispersion parameter, one would need to multiply by \code{sqrt(nobs(fit)/(1+df.residual(fit)))} when comparing with \code{lm} ...
+\item by default, vector-valued random effects are fitted with
+unstructured (general positive definite) variance-covariance matrices.
+Structured variance-covariance matrices can be specified in
+the form \code{struc(terms|group)}, where \code{struc} is one
+of
+\itemize{
+\item \code{diag} (diagonal, heterogeneous variance)
+\item \code{ar1} (autoregressive order-1, homogeneous variance)
+\item \code{cs} (compound symmetric, heterogeneous variance)
+\item \code{ou} (* Ornstein-Uhlenbeck, homogeneous variance)
+\item \code{exp} (* exponential autocorrelation)
+\item \code{gau} (* Gaussian autocorrelation)
+\item \code{mat} (* Matérn process correlation)
+\item \code{toep} (* Toeplitz)
+}
+(note structures marked with * are experimental/untested)
 }
 }
 \examples{
@@ -74,7 +93,7 @@ summary(m1)
 ## Hurdle Poisson model
 (m3 <- glmmTMB(count~spp + mined + (1|site), 
   zi=~spp + mined, 
-  family=list(family="truncated_poisson", link="log"), Salamanders))
+  family=truncated_poisson, Salamanders))
 
 ## Binomial model
 data(cbpp, package="lme4")

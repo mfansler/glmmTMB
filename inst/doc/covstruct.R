@@ -1,30 +1,40 @@
 ## ----setup, include=FALSE, message=FALSE---------------------------------
 library(knitr)
 library(glmmTMB)
-library(MASS)
+library(MASS)  ## for mvrnorm()
+library(TMB) ## for tmbprofile()
+## devtools::install_github("kaskr/adcomp/TMB")  ## get development version
 knitr::opts_chunk$set(echo = TRUE, eval=TRUE)
+## turned off caching for now: got error in chunk 'fit.us.2'
+## Error in retape() : 
+##   Error when reading the variable: 'thetaf'. Please check data and parameters.
+## In addition: Warning message:
+## In retape() : Expected object. Got NULL.
 set.seed(1)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----sim1----------------------------------------------------------------
 n <- 6                                              ## Number of time points
 x <- mvrnorm(mu = rep(0,n),
              Sigma = .7 ^ as.matrix(dist(1:n)) )    ## Simulate the process using the MASS package
 y <- x + rnorm(n)                                   ## Add measurement noise
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----simtimes------------------------------------------------------------
 times <- factor(1:n)
 levels(times)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----simgroup------------------------------------------------------------
 group <- factor(rep(1,n))
 
-## ----echo=TRUE, eval=FALSE-----------------------------------------------
-#  glmmTMB(y ~ ar1(times + 0 | group))
+## ----simcomb-------------------------------------------------------------
+dat0 <- data.frame(y,times,group)
 
-## ----echo=FALSE, eval=TRUE-----------------------------------------------
-glmmTMB(y ~ ar1(times + 0 | group))
+## ----fitar1, eval=FALSE--------------------------------------------------
+#  glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----ar0fit,echo=FALSE, eval=TRUE----------------------------------------
+glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
+
+## ----simGroup------------------------------------------------------------
 simGroup <- function(g) {
     x <- mvrnorm(mu = rep(0,n),
              Sigma = .7 ^ as.matrix(dist(1:n)) )    ## Simulate the process
@@ -35,80 +45,120 @@ simGroup <- function(g) {
 }
 simGroup(1)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-dat <- do.call("rbind", lapply(1:1000, simGroup) )
+## ----simGroup2-----------------------------------------------------------
+dat1 <- do.call("rbind", lapply(1:1000, simGroup) )
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.ar1 <- glmmTMB(y ~ ar1(times + 0 | group), data=dat)
-fit.ar1
+## ----fit.ar1-------------------------------------------------------------
+(fit.ar1 <- glmmTMB(y ~ ar1(times + 0 | group), data=dat1))
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.us <- glmmTMB(y ~ us(times + 0 | group), data=dat, dispformula=~0)
+## ----fit.us--------------------------------------------------------------
+fit.us <- glmmTMB(y ~ us(times + 0 | group), data=dat1, dispformula=~0)
 fit.us$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.us.vc-----------------------------------------------------------
 VarCorr(fit.us)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.toep <- glmmTMB(y ~ toep(times + 0 | group), data=dat)
+## ----fit.toep------------------------------------------------------------
+fit.toep <- glmmTMB(y ~ toep(times + 0 | group), data=dat1, dispformula=~0)
 fit.toep$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.toep.vc---------------------------------------------------------
 VarCorr(fit.toep)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.cs <- glmmTMB(y ~ cs(times + 0 | group), data=dat)
+## ----fit.cs--------------------------------------------------------------
+fit.cs <- glmmTMB(y ~ cs(times + 0 | group), data=dat1, dispformula=~0)
 fit.cs$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.cs.vc-----------------------------------------------------------
 VarCorr(fit.cs)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----anova1--------------------------------------------------------------
 anova(fit.ar1, fit.toep, fit.us)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----anova2--------------------------------------------------------------
 anova(fit.cs, fit.toep)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----sample2-------------------------------------------------------------
 x <- sample(1:2, 10, replace=TRUE)
 y <- sample(1:2, 10, replace=TRUE)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-pos <- numFactor(x,y)
-pos
+## ----numFactor-----------------------------------------------------------
+(pos <- numFactor(x,y))
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----parseNumLevels------------------------------------------------------
 parseNumLevels(levels(pos))
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-dat$times <- numFactor(dat$times)
-levels(dat$times)
+## ----numFactor2----------------------------------------------------------
+dat1$times <- numFactor(dat1$times)
+levels(dat1$times)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.ou <- glmmTMB(y ~ ou(times + 0 | group), data=dat)
+## ----fit.ou--------------------------------------------------------------
+fit.ou <- glmmTMB(y ~ ou(times + 0 | group), data=dat1)
 fit.ou$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.ou.vc-----------------------------------------------------------
 VarCorr(fit.ou)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.mat <- glmmTMB(y ~ mat(times + 0 | group), data=dat, dispformula=~0)
+## ----fit.mat-------------------------------------------------------------
+fit.mat <- glmmTMB(y ~ mat(times + 0 | group), data=dat1, dispformula=~0)
 fit.mat$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.mat.vc----------------------------------------------------------
 VarCorr(fit.mat)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.gau <- glmmTMB(y ~ gau(times + 0 | group), data=dat, dispformula=~0)
+## ----fit.gau-------------------------------------------------------------
+fit.gau <- glmmTMB(y ~ gau(times + 0 | group), data=dat1, dispformula=~0)
 fit.gau$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.gau.vc----------------------------------------------------------
 VarCorr(fit.gau)
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
-fit.exp <- glmmTMB(y ~ exp(times + 0 | group), data=dat)
+## ----fit.exp-------------------------------------------------------------
+fit.exp <- glmmTMB(y ~ exp(times + 0 | group), data=dat1)
 fit.exp$sdr$pdHess ## Converged ?
 
-## ----echo=TRUE, eval=TRUE------------------------------------------------
+## ----fit.exp.vc----------------------------------------------------------
 VarCorr(fit.exp)
+
+## ----fit.us.2------------------------------------------------------------
+vv0 <- VarCorr(fit.us)
+vv1 <- vv0$cond$group          ## extract 'naked' V-C matrix
+n <- nrow(vv1)
+rpars <- getME(fit.us,"theta") ## extract V-C parameters
+## first n parameters are log-std devs:
+all.equal(unname(diag(vv1)),exp(rpars[1:n])^2)
+## now try correlation parameters:
+cpars <- rpars[-(1:n)]
+length(cpars)==n*(n-1)/2      ## the expected number
+cc <- diag(n)
+cc[upper.tri(cc)] <- cpars
+L <- crossprod(cc)
+D <- diag(1/sqrt(diag(L)))
+D %*% L %*% D
+unname(attr(vv1,"correlation"))
+
+## ----other_check---------------------------------------------------------
+all.equal(c(cov2cor(vv1)),c(fit.us$obj$env$report(fit.us$fit$parfull)$corr[[1]]))
+
+## ----fit.us.profile,cache=TRUE-------------------------------------------
+## want $par, not $parfull: do NOT include conditional modes/'b' parameters
+ppar <- fit.us$fit$par
+length(ppar)
+range(which(names(ppar)=="theta")) ## the last n*(n+1)/2 parameters
+## only 1 fixed effect parameter
+tt <- tmbprofile(fit.us$obj,2,trace=FALSE)
+
+## ----fit.us.profile.plot-------------------------------------------------
+plot(tt)
+confint(tt)
+
+## ----fit.cs.profile,cache=TRUE-------------------------------------------
+ppar <- fit.cs$fit$par
+length(ppar)
+range(which(names(ppar)=="theta")) ## the last n*(n+1)/2 parameters
+## only 1 fixed effect parameter, 1 dispersion parameter
+tt2 <- tmbprofile(fit.cs$obj,3,trace=FALSE)
+
+## ----fit.cs.profile.plot-------------------------------------------------
+plot(tt2)
 
