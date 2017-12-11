@@ -120,6 +120,52 @@ fit.exp$sdr$pdHess ## Converged ?
 ## ----fit.exp.vc----------------------------------------------------------
 VarCorr(fit.exp)
 
+## ----spatial_data--------------------------------------------------------
+d <- data.frame(z = as.vector(volcano),
+                x = as.vector(row(volcano)),
+                y = as.vector(col(volcano)))
+
+## ----spatial_sub_sample--------------------------------------------------
+set.seed(1)
+d$z <- d$z + rnorm(length(volcano), sd=15)
+d <- d[sample(nrow(d), 100), ]
+
+## ----volcano_data_image--------------------------------------------------
+volcano.data <- array(NA, dim(volcano))
+volcano.data[cbind(d$x, d$y)] <- d$z
+image(volcano.data, main="Spatial data")
+
+## ----spatial_add_pos_and_group-------------------------------------------
+d$pos <- numFactor(d$x, d$y)
+d$group <- factor(rep(1, nrow(d)))
+
+## ----fit_spatial_model---------------------------------------------------
+f <- glmmTMB(z ~ 1 + exp(pos + 0 | group), data=d)
+
+## ----confint_sigma-------------------------------------------------------
+confint(f, "sigma")
+
+## ----newdata_corner------------------------------------------------------
+newdata <- data.frame( pos=numFactor(expand.grid(x=1:3,y=1:3)) )
+newdata$group <- factor(rep(1, nrow(newdata)))
+newdata
+
+## ----predict_corner------------------------------------------------------
+predict(f, newdata, allow.new.levels=TRUE)
+
+## ----predict_column------------------------------------------------------
+predict_col <- function(i) {
+    newdata <- data.frame( pos = numFactor(expand.grid(1:87,i)))
+    newdata$group <- factor(rep(1,nrow(newdata)))
+    predict(f, newdata=newdata, allow.new.levels=TRUE)
+}
+
+## ----predict_all---------------------------------------------------------
+pred <- sapply(1:61, predict_col)
+
+## ----image_results-------------------------------------------------------
+image(pred, main="Reconstruction")
+
 ## ----fit.us.2------------------------------------------------------------
 vv0 <- VarCorr(fit.us)
 vv1 <- vv0$cond$group          ## extract 'naked' V-C matrix

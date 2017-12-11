@@ -1,7 +1,7 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 0.1.4
-Date: 2017-10-25
+Version: 0.2.0
+Date: 2017-12-8
 Authors@R: c(person("Arni","Magnusson",role="aut"),
 	    person("Hans","Skaug",role="aut"),
 	    person("Anders","Nielsen",role="aut"),
@@ -29,7 +29,7 @@ LazyData: TRUE
 BugReports: https://github.com/glmmTMB/glmmTMB/issues
 RoxygenNote: 6.0.1.9000
 NeedsCompilation: yes
-Packaged: 2017-10-25 20:52:44 UTC; molliebrooks1
+Packaged: 2017-12-08 15:19:51 UTC; molliebrooks
 Author: Arni Magnusson [aut],
     Hans Skaug [aut],
     Anders Nielsen [aut],
@@ -42,4 +42,4 @@ Author: Arni Magnusson [aut],
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Encoding: UTF-8
 Repository: CRAN
-Date/Publication: 2017-10-26 20:52:22 UTC
+Date/Publication: 2017-12-11 14:47:09 UTC

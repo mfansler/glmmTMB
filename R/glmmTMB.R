@@ -9,6 +9,7 @@
 ##' @param respCol response column
 ##' @param offset offset
 ##' @param weights weights
+##' @param size number of trials in binomial and betabinomial families
 ##' @param family family object
 ##' @param se (logical) compute standard error?
 ##' @param call original \code{glmmTMB} call
@@ -24,6 +25,7 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
                        yobs,
                        respCol,
                        offset, weights,
+                       size=NULL,
                        family,
                        se=NULL,
                        call=NULL,
@@ -76,23 +78,38 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
   if (is.null(offset <- model.offset(fr)))
       offset <- rep(0,nobs)
 
-  ## FIXME (KK): I don't know why the original code looks for
-  ## 'weights' in 'fr':
-  ##
-  ##    if (is.null(weights <- fr[["(weights)"]]))
-  ##        weights <- rep(1, nobs)
-  ##
-  ## Just in case this is still relevant here's a workaround:
-  if (is.null(weights)) weights <- fr[["(weights)"]]
-  ## Still NULL ?
   if (is.null(weights)) weights <- rep(1, nobs)
 
-  ## binomial family: At this point we know that (yobs, weights) are
-  ## (proportions, size) as output from binomial()$initialize.
-  ## On the C++ side 'yobs' must be the actual observations (counts).
+  ## binomial family:
+  ## binomial()$initialize was only executed locally  
+  ## yobs could be a factor -> treat as binary following glm
+  ## yobs could be cbind(success, failure)
+  ## yobs could be binary
+  ## (yobs, weights) could be (proportions, size)
+  ## On the C++ side 'yobs' must be the number of successes.
   if ( binomialType(family$family) ) {
-    yobs <- weights * yobs
+    if (is.factor(yobs)) {
+      ## following glm, ‘success’ is interpreted as the factor not
+      ## having the first level (and hence usually of having the
+      ## second level).
+      yobs <- pmin(as.numeric(yobs)-1,1)
+      size <- rep(1, nobs)
+    } else {
+      if(is.matrix(yobs)) { # yobs=cbind(success, failure)
+        size <- yobs[,1] + yobs[,2]
+        yobs <- yobs[,1] #successes
+      } else {
+      if(all(yobs %in% c(0,1))) { #binary
+        size <- rep(1, nobs)
+      } else { #proportions
+          yobs <- weights * yobs
+          size <- weights
+          weights <- rep(1, nobs)
+        }
+      }
+    }
   }
+  if (is.null(size)) size <- numeric(0)
 
   data.tmb <- namedList(
     X = condList$X,
@@ -105,6 +122,7 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
     respCol,
     offset,
     weights,
+    size,
     ## information about random effects structure
     terms = condReStruc,
     termszi = ziReStruc,
@@ -342,10 +360,11 @@ stripReTrms <- function(xrt, whichReTrms = c("cnms","flist"), which="terms") {
   c(xrt$reTrms[whichReTrms],setNames(xrt[which],which))
 }
 
-.okWeightFamilies <- c("binomial", "betabinomial")
+#.okWeightFamilies <- c("binomial", "betabinomial")
 
 okWeights <- function(x) {
-  !is.na(match(x, .okWeightFamilies))
+	TRUE
+  #!is.na(match(x, .okWeightFamilies))
   ## x %in% .okWeightFamilies
 }	
 
@@ -381,7 +400,7 @@ binomialType <- function(x) {
 ##'     For an explanation of the dispersion parameter for each family, see (\code{\link{sigma}}).
 ##'     The dispersion model uses a log link. 
 ##'     In Gaussian mixed models, \code{dispformula=~0} fixes the parameter to be 0, forcing variance into the random effects.
-##' @param weights weights, as in \code{glm}. Only implemented for binomial and betabinomial families.
+##' @param weights weights, as in \code{glm}. Not automatically scaled to have sum 1.
 ##' @param offset offset
 ##' @param se whether to return standard errors
 ##' @param verbose logical indicating if some progress indication should be printed to the console.
@@ -436,7 +455,7 @@ binomialType <- function(x) {
 ##' 
 ##' ## Binomial model
 ##' data(cbpp, package="lme4")
-##' (tmbm1 <- glmmTMB(incidence/size ~ period + (1 | herd), weights=size,
+##' (tmbm1 <- glmmTMB(cbind(incidence, size-incidence) ~ period + (1 | herd),
 ##'                data=cbpp, family=binomial))
 ##' 
 ##' ## Dispersion model
@@ -563,7 +582,7 @@ glmmTMB <- function (
     weights <- as.vector(model.weights(fr))
 
     if(!is.null(weights) & !okWeights(family$family)) {
-      stop("'weights' are not available for this family. See `dispformula` instead.")
+      stop("'weights' are not available for this family.")
     }
 
     if (is.null(weights)) weights <- rep(1,nobs)
@@ -591,11 +610,8 @@ glmmTMB <- function (
     ## (2) warn on non-integer values
     etastart <- start <- mustart <- NULL
     if (!is.null(family$initialize)) {
-        eval(family$initialize)  ## <--- NOTE: Modifies 'y' and 'weights' !!!
+        local(eval(family$initialize))  ## 'local' so it checks but doesn't modify 'y' and 'weights'
     }
-    ## binomial()$initialize does *not* coerce logical to numeric ...
-    ##  may cause downstream problems, e.g. with predict()
-    y <- as.numeric(y)
     
    if (grepl("^truncated", family$family) & (any(y<1)) & (ziformula == ~0))
         stop(paste0("'", names(respCol), "'", " contains zeros (or values below the allowable range). ",
@@ -629,6 +645,8 @@ glmmTMB <- function (
 ##' @param optCtrl Passed as argument \code{control} to \code{nlminb}.
 ##' @param profile Logical; Experimental option to improve speed and
 ##'                robustness when a model has many fixed effects
+##' @param collect Logical; Experimental option to improve speed by
+##'                recognizing duplicated observations.
 ##' @details
 ##' The general non-linear optimizer \code{nlminb} is used by
 ##' \code{\link{glmmTMB}} for parameter estimation. It may sometimes be
@@ -653,18 +671,63 @@ glmmTMB <- function (
 ##' \code{glmmTMBControl(profile=quote(length(parameters$beta)>=5))}.
 ##' @export
 glmmTMBControl <- function(optCtrl=list(iter.max=300, eval.max=400), 
-                           profile=FALSE) {
+                           profile=FALSE,
+                           collect=FALSE) {
     ## FIXME: Change defaults - add heuristic to decide if 'profile' is beneficial.
     ##        Something like
     ## profile = (length(parameters$beta) >= 2) &&
     ##           (family$family != "tweedie")
     ## (TMB tweedie derivatives currently slow)
-    namedList(optCtrl, profile)
+    namedList(optCtrl, profile, collect)
+}
+
+##' @importFrom stats runif xtabs
+.collectDuplicates <- function(data.tmb) {
+    nm <- c("X", "Z", "Xzi", "Zzi", "Xd", "offset", "yobs",
+            "size"[length(data.tmb$size) > 0])
+    A <- do.call(cbind, data.tmb[nm])
+    ## Restore random seed on exit
+    ## FIXME: Simplify ?
+    seed <- .GlobalEnv$.Random.seed
+    on.exit({
+        if (is.null(seed))
+            rm(".Random.seed", envir=.GlobalEnv)
+        else
+            .GlobalEnv$.Random.seed <- seed
+    })
+    ## Generate hash code for data terms
+    hash <- as.vector(A %*% runif(ncol(A)))
+    hash <- format(hash, nsmall=20)
+    keep <- !duplicated(hash)
+    collect <- factor(hash, levels=hash[keep])
+    ## Check for collisions
+    rownames(A) <- NULL
+    A0 <- A[keep, , drop=FALSE]
+    if( ! identical (A,
+                     A0[unclass(collect), ]) )
+        stop("Hash code collision !")
+    ## Reduce
+    nm <- c("X", "Z", "Xzi", "Zzi", "Xd")
+    data.tmb[nm] <- lapply(data.tmb[nm],
+                           function(x) x[keep, , drop=FALSE])
+    nm <- c("offset", "yobs", "size")
+    data.tmb[nm] <- lapply(data.tmb[nm],
+                           function(x) x[keep])
+    ## Update weights
+    data.tmb$weights <- xtabs(data.tmb$weights ~ collect)
+    data.tmb
 }
 
 fitTMB <- function(TMBStruc) {
 
     control <- TMBStruc$control
+
+    if (control $ collect) {
+        ## To avoid side-effects (e.g. nobs.glmmTMB), we restore
+        ## original data (with duplicates) after fitting.
+        data.tmb.old <- TMBStruc$data.tmb
+        TMBStruc$data.tmb <- .collectDuplicates(TMBStruc$data.tmb)
+    }
 
     if (control $ profile) {
         obj <- with(TMBStruc,
@@ -762,6 +825,13 @@ fitTMB <- function(TMBStruc) {
         warning("Model convergence problem; ",
                 fit$message, ". ",
                 "See vignette('troubleshooting')")
+
+    if (control $ collect) {
+        ## Undo changes made to the data
+        TMBStruc$data.tmb <- data.tmb.old
+        obj$env$data <- obj$env$dataSanitize(data.tmb.old)
+        obj$retape()
+    }
 
     modelInfo <- with(TMBStruc,
                       namedList(nobs=nrow(data.tmb$X),

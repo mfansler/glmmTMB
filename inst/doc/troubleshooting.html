@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 
-<meta name="date" content="2017-10-25" />
+<meta name="date" content="2017-12-08" />
 
 <title>Troubleshooting with glmmTMB</title>
 
@@ -68,7 +68,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Troubleshooting with glmmTMB</h1>
-<h4 class="date"><em>2017-10-25</em></h4>
+<h4 class="date"><em>2017-12-08</em></h4>
 
 
 
@@ -111,7 +111,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dat1 =<span class="st"> </span><span class="kw">expand.grid</span>(<span class="dt">y=</span><span class="op">-</span><span class="dv">1</span><span class="op">:</span><span class="dv">1</span>, <span class="dt">rep=</span><span class="dv">1</span><span class="op">:</span><span class="dv">10</span>)
 m1 =<span class="st"> </span><span class="kw">glmmTMB</span>(y<span class="op">~</span><span class="dv">1</span>, dat1, <span class="dt">family=</span><span class="st">&quot;nbinom2&quot;</span>)</code></pre></div>
 <pre><code>## Error in nlminb(start = par, objective = fn, gradient = gr, control = control$optCtrl): NA/NaN gradient evaluation</code></pre>
-<pre><code>## Timing stopped at: 0.003 0.001 0.003</code></pre>
+<pre><code>## Timing stopped at: 0.003 0 0.003</code></pre>
 <p>The error occurs here because the negative binomial distribution is not appropriate for data with negative values.</p>
 <p>If you see this error, check that the response variable meets the assumptions of the specified distribution.</p>
 </div>

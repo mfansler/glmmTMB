@@ -68,9 +68,9 @@ print.fixef.glmmTMB <- function(x, digits = max(3, getOption("digits") - 3), ...
 ##'   arguments.
 ##'
 ##' @return Object of class \code{ranef.glmmTMB} with two components:
-##'   \item{conditional_model}{a list of data frames, containing random effects
+##'   \item{cond}{a list of data frames, containing random effects
 ##'     for the conditional model.}
-##'   \item{zero_inflation}{a list of data frames, containing random effects for
+##'   \item{zi}{a list of data frames, containing random effects for
 ##'     the zero inflation.}
 ##'
 ##' @note When a model has no zero inflation, the default behavior of
@@ -86,7 +86,7 @@ print.fixef.glmmTMB <- function(x, digits = max(3, getOption("digits") - 3), ...
 ##' model <- glmmTMB(Reaction ~ Days + (1|Subject), sleepstudy)
 ##' ranef(model)
 ##' print(ranef(model), simplify=FALSE)
-##' ranef(model)$conditional_model$Subject
+##' ranef(model)$cond$Subject
 ##'
 ##' @aliases ranef ranef.glmmTMB
 ##' @importFrom nlme ranef
@@ -794,7 +794,7 @@ simulate.glmmTMB<-function(object, nsim=1, seed=NULL, ...){
                      object$obj$simulate(par = object$fit$parfull)$yobs,
                      simplify=FALSE)
     if ( binomialType(family) ) {
-        size <- object$obj$env$data$weights
+        size <- object$obj$env$data$size
         ret <- lapply(ret, function(x) cbind(x, size - x, deparse.level=0) )
     }
     names(ret) <- paste("sim", seq_len(nsim), sep="_")
