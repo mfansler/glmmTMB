@@ -276,7 +276,8 @@ formatVC <- function(varcor, digits = max(3, getOption("digits") - 2),
             r <- formatCor(r,maxlen)
             ## drop last column (will be blank since we blanked out
             ##  the upper triangle + diagonal)
-            r <- r[, -ncol(r), drop = FALSE]
+            if (ncol(r)>maxlen)
+                r <- r[, -ncol(r), drop = FALSE]
         }
         covstruct <- getCovstruct(x)
         if (covstruct %in% c("ar1","cs")) {
@@ -316,7 +317,7 @@ formatVC <- function(varcor, digits = max(3, getOption("digits") - 2),
         ## get corrs
 	maxlen <- max(reLens)
 	corr <-
-	    do.call(Matrix::rBind,lapply(varcor, getCorSD,
+	    do.call(rbind,lapply(varcor, getCorSD,
                                          type="correlation", maxlen=maxlen))
         ## add blank values as necessary 
 	if (nrow(corr) < nrow(reMat))

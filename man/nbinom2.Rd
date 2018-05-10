@@ -5,11 +5,13 @@
 \alias{family_glmmTMB}
 \alias{nbinom1}
 \alias{compois}
+\alias{truncated_compois}
 \alias{genpois}
+\alias{truncated_genpois}
 \alias{truncated_poisson}
 \alias{truncated_nbinom2}
 \alias{truncated_nbinom1}
-\alias{betar}
+\alias{beta_family}
 \alias{betabinomial}
 \alias{tweedie}
 \title{Family functions for glmmTMB}
@@ -20,7 +22,11 @@ nbinom1(link = "log")
 
 compois(link = "log")
 
+truncated_compois(link = "log")
+
 genpois(link = "log")
+
+truncated_genpois(link = "log")
 
 truncated_poisson(link = "log")
 
@@ -28,14 +34,14 @@ truncated_nbinom2(link = "log")
 
 truncated_nbinom1(link = "log")
 
-betar(link = "logit")
+beta_family(link = "logit")
 
 betabinomial(link = "logit")
 
 tweedie(link = "log")
 }
 \arguments{
-\item{link}{(character) link function ("log", "logit", "probit", "inverse", "cloglog", or "identity")}
+\item{link}{(character) link function for the conditional mean ("log", "logit", "probit", "inverse", "cloglog", or "identity")}
 }
 \value{
 returns a list with (at least) components
@@ -48,19 +54,27 @@ parameter) arguments giving the predicted variance}
 Family functions for glmmTMB
 }
 \details{
-\describe{
-     \item{nbinom2}{has a variance that increases quadratically with the mean (Hardin & Hilbe 2007)}
-     \item{nbinom1}{has a variance that increases linearly with the mean (Hardin & Hilbe 2007)}
+If specified, the dispersion model uses a log link. Denoting the dispersion parameter
+as phi=exp(eta) (where eta is the linear predictor from the dispersion model)
+and the predicted mean as mu:
+ \describe{
+     \item{gaussian}{(from base R): constant variance=phi}
+     \item{Gamma}{(from base R) phi is the shape parameter, i.e variance=mu*phi}
+     \item{nbinom2}{variance increases quadratically with the mean (Hardin & Hilbe 2007),
+i.e. variance=mu*(1+mu/phi)}
+     \item{nbinom1}{variance increases linearly with the mean (Hardin & Hilbe 2007),
+i.e. variance=mu*(1+phi)}
      \item{compois}{is the Conway-Maxwell Poisson parameterized with the exact mean
-       which differs from the COMPoissonReg package (Sellers & Lotze 2015)}
+          which differs from the COMPoissonReg package (Sellers & Lotze 2015)}
      \item{genpois}{is the generalized Poisson distribution}
-     \item{beta}{follows the parameterization of Ferrari and Cribari-Neto (2004) and the \code{betareg} package}
+     \item{beta}{follows the parameterization of Ferrari and Cribari-Neto (2004) and the \code{betareg} package,
+    i.e. variance=mu*(1-mu)/(1+phi)}
 }
 }
 \references{
 \itemize{
 \item Ferrari SLP, Cribari-Neto F (2004). "Beta Regression for Modelling Rates and Proportions." \emph{J. Appl. Stat.}  31(7), 799-815.
-\item Hardin JW & Hilbe JM (2007). "Generalized linear models and extensions." Stata press.
+\item Hardin JW & Hilbe JM (2007). "Generalized linear models and extensions." Stata Press.
 \item Sellers K & Lotze T (2015). "COMPoissonReg: Conway-Maxwell Poisson (COM-Poisson) Regression". R package version 0.3.5. https://CRAN.R-project.org/package=COMPoissonReg
 }
 }

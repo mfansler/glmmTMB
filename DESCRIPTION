@@ -1,7 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 0.2.0
-Date: 2017-12-8
+Version: 0.2.1.0
 Authors@R: c(person("Arni","Magnusson",role="aut"),
 	    person("Hans","Skaug",role="aut"),
 	    person("Anders","Nielsen",role="aut"),
@@ -19,27 +18,28 @@ Description: Fit linear and generalized linear mixed models with various
     out using the Laplace approximation. Gradients are calculated using automatic
     differentiation.
 License: AGPL-3
+Depends: R (>= 3.2.0)
 Imports: methods, TMB (>= 1.7.6), lme4 (>= 1.1-10), Matrix, nlme
 LinkingTo: TMB, RcppEigen
-Suggests: knitr, testthat, MASS, lattice, ggplot2, mlmRev, bbmle (>=
-        1.0.19), pscl, MCMCpack, coda, reshape2
+Suggests: knitr, rmarkdown, testthat, MASS, lattice, ggplot2, mlmRev,
+        bbmle (>= 1.0.19), pscl, MCMCpack, coda, reshape2
 VignetteBuilder: knitr
 URL: https://github.com/glmmTMB
 LazyData: TRUE
 BugReports: https://github.com/glmmTMB/glmmTMB/issues
 RoxygenNote: 6.0.1.9000
 NeedsCompilation: yes
-Packaged: 2017-12-08 15:19:51 UTC; molliebrooks
 Author: Arni Magnusson [aut],
-    Hans Skaug [aut],
-    Anders Nielsen [aut],
-    Casper Berg [aut],
-    Kasper Kristensen [aut],
-    Martin Maechler [aut],
-    Koen van Bentham [aut],
-    Ben Bolker [aut],
-    Mollie Brooks [aut, cre]
+  Hans Skaug [aut],
+  Anders Nielsen [aut],
+  Casper Berg [aut],
+  Kasper Kristensen [aut],
+  Martin Maechler [aut],
+  Koen van Bentham [aut],
+  Ben Bolker [aut],
+  Mollie Brooks [aut, cre]
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Encoding: UTF-8
+Packaged: 2018-05-10 09:32:50 UTC; molliebrooks
 Repository: CRAN
-Date/Publication: 2017-12-11 14:47:09 UTC
+Date/Publication: 2018-05-10 22:04:30 UTC

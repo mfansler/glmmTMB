@@ -54,10 +54,24 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE)
 ##' @param object a \code{glmmTMB} object
 ##' @param newdata new data for prediction
 ##' @param se.fit return the standard errors of the predicted values?
-##' @param zitype for zero-inflated models,
-##' return expected value ("response": (mu*(1-p))),
-##' the mean of the conditional distribution ("conditional": mu),
-##' or the probability of a structural zero ("zprob")?
+##' @param zitype deprecated: formerly used to specify type of zero-inflation probability. Now synonymous with \code{type}
+##' @param type Denoting \eqn{mu} as the mean of the conditional distribution and
+##' \code{p} as the zero-inflation probability,
+##' the possible choices are:
+##' \describe{
+##' \item{"link"}{conditional mean on the scale of the link function,
+##' or equivalently the linear predictor of the conditional model}
+##' \item{"response"}{expected value; this is \eqn{mu*(1-p)} for zero-inflated models
+##' and \code{mu} otherwise}
+##' \item{"conditional"}{mean of the conditional response; \code{mu} for all models
+##' (i.e., synonymous with \code{"response"} in the absence of zero-inflation}
+##' \item{"zprob"}{the probability of a structural zero (gives an error
+##' for non-zero-inflated models)}
+##' ##' \item{"zilink"}{predicted zero-inflation probability on the scale of
+##' the logit link function}
+##' }
+##' @param na.action how to handle missing values in \code{newdata} (see \code{\link{na.action}});
+##' the default (\code{na.pass}) is to predict \code{NA}
 ##' @param debug (logical) return the \code{TMBStruc} object that will be
 ##' used internally for debugging?
 ##' @param re.form (not yet implemented) specify which random effects to condition on when predicting
@@ -75,18 +89,25 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE)
 ##' nd$Subject <- "new"
 ##' predict(g0, newdata=nd, allow.new.levels=TRUE)
 ##' @importFrom TMB sdreport
-##' @importFrom stats optimHess
+##' @importFrom stats optimHess model.frame na.fail na.pass napredict
 ##' @export
 predict.glmmTMB <- function(object,newdata=NULL,
                             se.fit=FALSE,
                             re.form, allow.new.levels=FALSE,
-                            zitype = c("response","conditional","zprob"),
+                            type = c("link", "response",
+                                     "conditional","zprob","zlink"),
+                            zitype = NULL,
+                            na.action = na.pass,
                             debug=FALSE,
                             ...)
 {
-  ## FIXME: add re.form, type, ...
-  ## FIXME: deal with napredict stuff ...
+  ## FIXME: add re.form
 
+  if (!is.null(zitype)) {
+     warning("zitype is deprecated: please use type instead")
+     type <- zitype
+  }
+  type <- match.arg(type)
   if (!missing(re.form)) stop("re.form not yet implemented")
   ##if (allow.new.levels) stop("allow.new.levels not yet implemented")
   mc <- mf <- object$call
@@ -95,18 +116,21 @@ predict.glmmTMB <- function(object,newdata=NULL,
   ## do we want to re-do this part???
 
   ## need to 'fix' call to proper model.frame call whether or not
-  ## we have new data, because
-  m <- match(c("subset", "weights", "na.action", "offset"),
+  ## we have new data, because ... (??)
+  m <- match(c("subset", "weights", "offset", "na.action"),
              names(mf), 0L)
   mf <- mf[c(1L, m)]
+
   mf$drop.unused.levels <- TRUE
   mf[[1]] <- as.name("model.frame")
   mf$formula <- RHSForm(object$modelInfo$allForm$combForm, as.form=TRUE)
+    
   if (is.null(newdata)) {
     mf$data <- mc$data ## restore original data
     newFr <- object$fr
   } else {
     mf$data <- newdata
+    mf$na.action <- na.action
     newFr <- eval.parent(mf)
   }
 
@@ -122,21 +146,22 @@ predict.glmmTMB <- function(object,newdata=NULL,
   ## append to existing model frame
   augFr <- rbind(object$fr,newFr)
 
-  w <- which(is.na(augFr[[respNm]]))
+  ## Pointers into 'new rows' of augmented data frame.
+  w <- nrow(object$fr) + seq_len(nrow(newFr))
 
-  ## ugh. as.numeric() is to fix GH#178
-  ## not sure if we need to be working harder to translate
-  ##   the variety of possible binomial inputs in this column?
-  ## binomial()$initialize (1) needs y, nobs, weights defined;
-  ##   (2) can't handle NA values in y
-  yobs <- as.numeric(augFr[[names(omi$respCol)]])
+  ## Variety of possible binomial inputs are taken care of by
+  ## 'mkTMBStruc' further down.
+  yobs <- augFr[[names(omi$respCol)]]
 
-  ## match zitype arg with internal name
-  ziPredNm <- switch(match.arg(zitype),
+  ## match type arg with internal name
+  ## FIXME: warn if "link"  
+  ziPredNm <- switch(type,
                      response   = "corrected",
+                     link       =,
                      conditional= "uncorrected",
+                     zlink      = ,
                      zprob      = "prob",
-                     stop("unknown zitype ",zitype))
+                     stop("unknown type ",type))
   ziPredCode <- .valid_zipredictcode[ziPredNm]
 
   ## need eval.parent() because we will do eval(mf) down below ...
@@ -151,8 +176,7 @@ predict.glmmTMB <- function(object,newdata=NULL,
                                fr=augFr,
                                yobs=yobs,
                                respCol=respCol,
-                               offset=NULL,
-                               weights=NULL,
+                               weights=model.weights(augFr),
                                family=omi$family,
                                ziPredictCode=ziPredNm,
                                doPredict=as.integer(se.fit),
@@ -178,16 +202,33 @@ predict.glmmTMB <- function(object,newdata=NULL,
   newObj$fn(oldPar)  ## call once to update internal structures
   lp <- newObj$env$last.par
 
+  na.act <- attr(model.frame(object),"na.action")
+  do.napred <- missing(newdata) && !is.null(na.act)
   if (!se.fit) {
-      newObj$report(lp)$mu_predict
+      pred <- newObj$report(lp)$mu_predict
   } else {
       H <- with(object,optimHess(oldPar,obj$fn,obj$gr))
       ## FIXME: Eventually add 'getReportCovariance=FALSE' to this sdreport
       ##        call to fix memory issue (requires recent TMB version)
       ## Fixed! (but do we want a flag to get it ? ...)
       sdr <- sdreport(newObj,oldPar,hessian.fixed=H,getReportCovariance=FALSE)
-      pred <- summary(sdr, "report") ## TMB:::summary.sdreport(sdr, "report")
-      list(fit    = pred[,"Estimate"],
-           se.fit = pred[,"Std. Error"])
+      sdrsum <- summary(sdr, "report") ## TMB:::summary.sdreport(sdr, "report")
+      pred <- sdrsum[,"Estimate"]
+      se <- sdrsum[,"Std. Error"]
   }
+  if (do.napred) {
+      pred <- napredict(na.act,pred)
+      if (se.fit) se <- napredict(na.act,se)
+  }
+  if (type %in% c("zlink","link")) {
+     ff <- object$modelInfo$family
+     if (!(type=="link" && ff$link=="identity")) {
+         if (type=="zlink") {
+             ff <- make.link("logit")
+         }
+         pred <- ff$linkfun(pred)
+         if (se.fit) se <- se/ff$mu.eta(pred) ## do this after transforming pred!
+     } ## if not identity link  
+  } ## if link or zlink
+  if (!se.fit) return(pred) else return(list(fit=pred,se.fit=se))
 }

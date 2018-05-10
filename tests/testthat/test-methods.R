@@ -44,6 +44,20 @@ test_that("Fitted and residuals", {
     expect_equal(rr2(glm(Murder~Population,ss,family=Gamma(link="log"))),
                  rr2(glmmTMB(Murder~scale(Population),ss,
                              family=Gamma(link="log"))),tol=1e-5)
+    ## weights are incorporated in Pearson residuals
+    ## GH 307
+    tmbm4 <- glm(incidence/size ~ period,
+             data = cbpp, family = binomial, weights = size)
+    tmbm5 <- glmmTMB(incidence/size ~ period,
+                     data = cbpp, family = binomial, weights = size)
+    expect_equal(residuals(tmbm4,type="pearson"),
+                 residuals(tmbm5,type="pearson"),tolerance=1e-6)
+    ## two-column responses give vector of residuals GH 307
+    tmbm6 <- glmmTMB(cbind(incidence,size-incidence) ~ period,
+                     data = cbpp, family = binomial)
+    expect_equal(residuals(tmbm4,type="pearson"),
+                 residuals(tmbm6,type="pearson"),tolerance=1e-6)
+
 })
 
 test_that("Predict", {
@@ -95,7 +109,10 @@ test_that("terms", {
     m <- glmmTMB(y~ns(x,3),dd)
     ## if predvars is not properly attached to term, this will
     ## fail as it tries to construct a 3-knot spline from a single point
-    model.matrix(delete.response(terms(m)),data=data.frame(x=1))
+    expect_equal(model.matrix(delete.response(terms(m)),data=data.frame(x=1)),
+      structure(c(1, 0, 0, 0), .Dim = c(1L, 4L), .Dimnames = list("1", 
+    c("(Intercept)", "ns(x, 3)1", "ns(x, 3)2", "ns(x, 3)3")),
+    assign = c(0L, 1L, 1L, 1L)))
 })
 
 test_that("summary_print", {
@@ -131,6 +148,7 @@ test_that("confint", {
                   .Dimnames = list(c("cond.(Intercept)", "cond.Days"),
                                    c("2.5 %", "97.5 %"))),
         tolerance=1e-6)
+    ciw <- confint(fm2, 1:2, method="Wald", estimate=FALSE)
     expect_warning(confint(fm2,type="junk"),
                    "extra arguments ignored")
     ## Gamma test Std.Dev and sigma
@@ -154,6 +172,23 @@ test_that("confint", {
                                               "cond.Std.Dev.Days", "sigma"),
                                             c("2.5 %", "97.5 %")))
     expect_equal(ci, ci.expect, tolerance=1e-6)
+    ## profile CI
+    ci.prof <- confint(fm2,parm=1,method="profile", npts=3)
+    expect_equal(ci.prof,
+                 structure(c(237.27249, 265.13383),
+                           .Dim = 1:2, .Dimnames = list(
+                                "(Intercept)", c("2.5 %", "97.5 %"))),
+                 tolerance=1e-6)
+    ## uniroot CI
+    ci.uni <- confint(fm2,parm=1,method="uniroot")
+    expect_equal(ci.uni,
+                 structure(c(237.68071,265.12949,251.4050979),
+                        .Dim = c(1L, 3L),
+        .Dimnames = list("(Intercept)", c("2.5 %", "97.5 %", "Estimate"))),
+                 tolerance=1e-6)
+    ## check against 'raw' tmbroot
+    ## (not exported (yet?) ...)
+    ## tmbr <- glmmTMB:::tmbroot(fm2$obj,name=1)
 })
 
 test_that("vcov", {
@@ -164,6 +199,8 @@ test_that("vcov", {
                        "theta_Days|Subject.1", "theta_Days|Subject.2",
                        "theta_Days|Subject.3"),
           .Names = c("cond1", "cond2", "disp", "", "", "")))
+    ## vcov doesn't include dispersion for non-dispersion families ...
+    expect_equal(dim(vcov(fm2P,full=TRUE)),c(5,5))
 })
 
 set.seed(101)

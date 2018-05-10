@@ -151,13 +151,13 @@ newdata$group <- factor(rep(1, nrow(newdata)))
 newdata
 
 ## ----predict_corner------------------------------------------------------
-predict(f, newdata, allow.new.levels=TRUE)
+predict(f, newdata, type="response", allow.new.levels=TRUE)
 
 ## ----predict_column------------------------------------------------------
 predict_col <- function(i) {
     newdata <- data.frame( pos = numFactor(expand.grid(1:87,i)))
     newdata$group <- factor(rep(1,nrow(newdata)))
-    predict(f, newdata=newdata, allow.new.levels=TRUE)
+    predict(f, newdata=newdata, type="response", allow.new.levels=TRUE)
 }
 
 ## ----predict_all---------------------------------------------------------
