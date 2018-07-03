@@ -4,6 +4,26 @@
 \title{glmmTMB News}
 \encoding{UTF-8}
 
+\section{CHANGES IN VERSION 0.2.2}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item REML is now an option (GH #352). It is typically only for 
+      Gaussian response variables, but can also be useful 
+      for some non-Gaussian response variabes if used with caution 
+      (i.e. simulate a test case first).
+    }
+  }
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Because family functions are now available for all
+      families that have been implemented in the underlying TMB
+      code, specifying the \code{family} argument as a raw list (rather than as a family
+      function, the name of a family function, or the output of such a
+      function) is now deprecated.
+    }
+  }
+}
+
 \section{CHANGES IN VERSION 0.2.1}{
   \subsection{NEW FEATURES}{
     \itemize{

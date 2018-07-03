@@ -202,7 +202,8 @@ logLik.glmmTMB <- function(object, ...) {
   }else val <- -object$fit$objective
 
   nobs <- nobs.glmmTMB(object)
-  structure(val, nobs = nobs, nall = nobs, df = length(object$fit$par),
+  df <- sum( ! names(object$fit$parfull) %in% c("b", "bzi") )
+  structure(val, nobs = nobs, nall = nobs, df = df,
             class = "logLik")
 }
 
@@ -233,15 +234,26 @@ df.residual.glmmTMB <- function(object, ...) {
 ##' @importFrom stats vcov
 ##' @export
 vcov.glmmTMB <- function(object, full=FALSE, ...) {
+  REML <- object$modelInfo$REML
   if(is.null(sdr <- object$sdr)) {
     warning("Calculating sdreport. Use se=TRUE in glmmTMB to avoid repetitive calculation of sdreport")
-    sdr <- sdreport(object$obj)
+    sdr <- sdreport(object$obj, getJointPrecision=REML)
+  }
+  if (REML) {
+      ## NOTE: This code would also work in non-REML case provided
+      ## that jointPrecision is present in the object.
+      Q <- sdr$jointPrecision
+      whichNotRandom <- which( ! rownames(Q) %in% c("b", "bzi") )
+      Qm <- GMRFmarginal(Q, whichNotRandom)
+      cov.all.parms <- solve(as.matrix(Qm))
+  } else {
+      cov.all.parms <- sdr$cov.fixed
   }
   keepTag <- if (full) { "."
              } else if (!trivialDisp(object)) { "beta*"
              } else "beta($|[^d])"
-  to_keep <- grep(keepTag,colnames(sdr$cov.fixed)) # only keep betas
-  covF <- sdr$cov.fixed[to_keep,to_keep,drop=FALSE]
+  to_keep <- grep(keepTag,colnames(cov.all.parms)) # only keep betas
+  covF <- cov.all.parms[to_keep,to_keep,drop=FALSE]
 
   mkNames <- function(tag) {
       X <- getME(object,paste0("X",tag))
@@ -489,6 +501,12 @@ residuals.glmmTMB <- function(object, type=c("response", "pearson"), ...) {
     if (!is.null(dim(mr))) {
         wts <- mr[,1]+mr[,2]
         mr <- mr[,1]/wts
+    } else if (is.factor(mr)) {
+        ## ?binomial:
+        ## "‘success’ is interpreted as the factor not having the first level"
+        nn <- names(mr)
+        mr <- as.numeric(as.numeric(mr)>1)
+        names(mr) <- nn  ## restore stripped names
     }
     r <- mr - fitted(object)
     res <- switch(type,
@@ -733,7 +751,7 @@ confint.glmmTMB <- function (object, parm, level = 0.95,
     }
     else {  ## profile CIs
         pp <- profile(object, parm=parm, level_max=level,
-                      parallel=parallel,
+                      parallel=parallel,ncpus=ncpus,
                       ...)
         ci <- confint(pp)
     }
@@ -835,7 +853,7 @@ fitted.glmmTMB <- function(object, ...) {
     predict(object,type="response")
 }
 
-.noSimFamilies <- c("beta", "genpois")
+.noSimFamilies <- c("genpois")
 
 noSim <- function(x) {
     !is.na(match(x, .noSimFamilies))

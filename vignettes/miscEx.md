@@ -1,6 +1,6 @@
 ---
 title: "Miscellaneous examples"
-date: "`r Sys.Date()`"
+date: "2018-06-19"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{miscellaneous examples}
@@ -8,13 +8,12 @@ vignette: >
   \usepackage[utf8]{inputenc}
 ---
 
-```{r echo=FALSE}
-library(glmmTMB)
-```
+
 
 ## Beta dispersion model
 
-```{r simbeta1}
+
+```r
 set.seed(1001)
 N <- 1000
 mean_pars <- c(1,2)
@@ -27,7 +26,8 @@ dd$y <- rbeta(N,shape1=m*d,shape2=(1-m)*d)
 
 Fit models:
 
-```{r modbeta1}
+
+```r
 ## location only
 m1 <- glmmTMB(y~x,
               family=beta_family(),
@@ -37,11 +37,30 @@ m2 <- update(m1,dispformula=~x)
 ```
 
 Fixed effects look close to theoretical values:
-```{r coefbeta1}
+
+```r
 fixef(m2)
 ```
 
+```
+## 
+## Conditional model:
+## (Intercept)            x  
+##       1.005        2.013  
+## 
+## Dispersion model:
+## (Intercept)            x  
+##       1.064        1.962
+```
+
 AIC is insanely much better for the model with dispersion varying:
-```{r AICbeta1}
+
+```r
 bbmle::AICtab(m1,m2)
+```
+
+```
+##    dAIC   df
+## m2    0.0 4 
+## m1 1491.6 3
 ```

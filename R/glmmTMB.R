@@ -18,6 +18,7 @@
 ##' @param ziPredictCode zero-inflation code
 ##' @param doPredict flag to enable sds of predictions
 ##' @param whichPredict which observations in model frame represent predictions
+##' @param REML Logical; Use REML estimation rather than maximum likelihood.
 ##' @keywords internal
 mkTMBStruc <- function(formula, ziformula, dispformula,
                        combForm,
@@ -34,7 +35,32 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
                        verbose=NULL,
                        ziPredictCode="corrected",
                        doPredict=0,
-                       whichPredict=integer(0)) {
+                       whichPredict=integer(0),
+                       REML=FALSE) {
+
+  ## handle family specified as naked list
+  ## if specified as character or function, should have been converted
+  ## to a list with class "family" above ...
+    
+  ## FIXME: (1) should use proper tryCatch below
+  if (!is(family,"family")) {
+      ## if family specified as list 
+      if (is.list(family)) {
+          warning("specifying ",sQuote("family")," as a plain list is deprecated")
+      }
+      fname <- family$family
+      args <- family["link"]
+      ff <- try(do.call(fname,args),silent=TRUE)
+      if (!inherits(ff,"try-error")) {
+          family <- ff
+      } else {
+          ## fallback: add link information to family
+          ## FIXME: is this ever used?
+          if (is.null(family$linkfun)) {
+              family <- c(family,make.link(family$link))
+          }
+      }
+  }
 
     ## Handle ~0 dispersion for gaussian family.
     mapArg <- NULL
@@ -68,12 +94,12 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
     dispList  <- getXReTrms(dispformula, mf, fr,
                             ranOK=FALSE, "dispersion")
 
-  condReStruc <- with(condList, getReStruc(reTrms, ss))
-  ziReStruc <- with(ziList, getReStruc(reTrms, ss))
+    condReStruc <- with(condList, getReStruc(reTrms, ss))
+    ziReStruc <- with(ziList, getReStruc(reTrms, ss))
 
-  grpVar <- with(condList, getGrpVar(reTrms$flist))
+    grpVar <- with(condList, getGrpVar(reTrms$flist))
 
-  nobs <- nrow(fr)
+    nobs <- nrow(fr)
 
   if (is.null(weights)) weights <- rep(1, nobs)
 
@@ -108,6 +134,7 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
   }
   if (is.null(size)) size <- numeric(0)
 
+    
   data.tmb <- namedList(
     X = condList$X,
     Z = condList$Z,
@@ -154,12 +181,14 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
                      ))
   randomArg <- c(if(ncol(data.tmb$Z)   > 0) "b",
                  if(ncol(data.tmb$Zzi) > 0) "bzi")
+  ## REML
+  if (REML) randomArg <- c(randomArg, "beta")
   dispformula <- dispformula.orig ## May have changed - restore
   return(namedList(data.tmb, parameters, mapArg, randomArg, grpVar,
             condList, ziList, dispList, condReStruc, ziReStruc,
             family, respCol,
             allForm=namedList(combForm,formula,ziformula,dispformula),
-            fr, se, call, verbose))
+            fr, se, call, verbose, REML))
 }
 
 ##' Create X and random effect terms from formula
@@ -391,14 +420,7 @@ binomialType <- function(x) {
 ##' @param formula combined fixed and random effects formula, following lme4
 ##'     syntax
 ##' @param data data frame
-##' @param family family (variance/link function) information; see \code{\link{family}} for
-##' generic family details or \code{\link{family_glmmTMB}} for details of \code{glmmTMB} specific families.  
-##' As in \code{\link{glm}}, \code{family} can be specified as (1) a character string
-##' referencing an existing family-construction function (e.g. \sQuote{"binomial"}); (2) a symbol referencing
-##' such a function (\sQuote{binomial}); or (3) the output of such a function (\sQuote{binomial()}).
-##' In addition, for families such as \code{betabinomial} that are special to \code{glmmTMB}, family
-##' can be specified as (4) a list comprising the name of the distribution and the link function
-##' (\sQuote{list(family="binomial", link="logit")}). However, the first 3 options are preferable.
+##' @param family a family function, a character string naming a family function, or the result of a call to a family function family (variance/link function) information; see \code{\link{family}} for generic discussion of families or \code{\link{family_glmmTMB}} for details of \code{glmmTMB}-specific families.
 ##' @param ziformula a \emph{one-sided} (i.e., no response variable) formula for
 ##'     zero-inflation combining fixed and random effects:
 ##' the default \code{~0} specifies no zero-inflation.
@@ -416,11 +438,12 @@ binomialType <- function(x) {
 ##' @param weights weights, as in \code{glm}. Not automatically scaled to have sum 1.
 ##' @param offset offset for conditional model (only):
 ##' @param se whether to return standard errors
-##' @param na.action how to handle missing values (see \code{\link{na.action}})
+##' @param na.action how to handle missing values (see \code{\link{na.action}} and \code{\link{model.frame}}); from \code{\link{lm}}, \dQuote{The default is set by the \code{\link{na.action}} setting of \code{\link{options}}, and is \code{\link{na.fail}} if that is unset.  The \sQuote{factory-fresh} default is \code{\link{na.omit}}.}
 ##' @param verbose logical indicating if some progress indication should be printed to the console.
 ##' @param doFit whether to fit the full model, or (if FALSE) return the preprocessed data and parameter objects,
 ##'     without fitting the model
 ##' @param control control parameters; see \code{\link{glmmTMBControl}}.
+##' @param REML Logical; Use REML estimation rather than maximum likelihood.
 ##' @importFrom stats gaussian binomial poisson nlminb as.formula terms model.weights
 ##' @importFrom lme4 subbars findbars mkReTrms nobars
 ##' @importFrom Matrix t
@@ -430,7 +453,8 @@ binomialType <- function(x) {
 ##' \item binomial models with more than one trial (i.e., not binary/Bernoulli)
 ##' can either be specified in the form \code{prob ~ ..., weights = N} or in
 ##' the more typical two-column matrix (\code{cbind(successes,failures)~...}) form.
-##' \item in all cases \code{glmmTMB} returns maximum likelihood estimates - random effects variance-covariance matrices are not REML (so use \code{REML=FALSE} when comparing with \code{lme4::lmer}), and residual standard deviations (\code{\link{sigma}}) are not bias-corrected. Because the \code{\link{df.residual}} method for \code{glmmTMB} currently counts the dispersion parameter, one would need to multiply by \code{sqrt(nobs(fit)/(1+df.residual(fit)))} when comparing with \code{lm} ...
+##' \item Behavior of \code{REML=TRUE} for Gaussian responses matches \code{lme4::lmer}. It may also be useful in some cases with non-Gaussian responses (Millar 2011). Simulations should be done first to verify. 
+##' \item Because the \code{\link{df.residual}} method for \code{glmmTMB} currently counts the dispersion parameter, one would need to multiply by \code{sqrt(nobs(fit)/(1+df.residual(fit)))} when comparing with \code{lm} ...
 ##' \item by default, vector-valued random effects are fitted with
 ##' unstructured (general positive definite) variance-covariance matrices.
 ##' Structured variance-covariance matrices can be specified in
@@ -447,6 +471,11 @@ binomialType <- function(x) {
 ##' \item \code{toep} (* Toeplitz)
 ##' }
 ##' (note structures marked with * are experimental/untested)
+##' \item For backward compatibility, the \code{family} argument can also be specified as a list comprising the name of the distribution and the link function (e.g. \sQuote{list(family="binomial", link="logit")}). However, \strong{this alternatives is now deprecated} (it produces a warning and will be removed at some point in the future). Furthermore, certain capabilities such as Pearson residuals or predictions on the data scale will only be possible if components such as \code{variance} and \code{linkfun} are present (see \code{\link{family}}).
+##' }
+##' @references
+##' \itemize{
+##' \item Millar, Russell B. Maximum Likelihood Estimation and Inference: With Examples in R, SAS and ADMB. John Wiley & Sons, 2011.
 ##' }
 ##' @useDynLib glmmTMB
 ##' @importFrom stats update
@@ -500,11 +529,12 @@ glmmTMB <- function (
     dispformula= ~1,
     weights=NULL,
     offset=NULL,
-    na.action = getOption("na.action", default=na.fail),
+    na.action=na.fail,
     se=TRUE,
     verbose=FALSE,
     doFit=TRUE,
-    control=glmmTMBControl()
+    control=glmmTMBControl(),
+    REML=FALSE
     )
 {
 
@@ -515,18 +545,31 @@ glmmTMB <- function (
     ##                       control = glmerControl(), ...) {
     call <- mf <- mc <- match.call()
 
-    if (is.character(family))
-      family <- get(family, mode = "function", envir = parent.frame())
-    if (is.function(family))
-      family <- family()
+    if (is.character(family)) {
+        if (family=="beta") {
+            family <- "beta_family"
+            warning("please use ",sQuote("beta_family()")," rather than ",
+                    sQuote("\"beta\"")," to specify a Beta-distributed response")
+        }
+        family <- get(family, mode = "function", envir = parent.frame())
+    }
+    if (is.function(family)) {
+        ## call family with no arguments
+        family <- family()
+    }
+    ## FIXME: what is this doing? call to a function that's not really
+    ##  a family creation function?
     if (is.null(family$family)) {
       print(family)
       stop("'family' not recognized")
     }
-    if (!all(c("family","link") %in% names(family)))
+    fnames <- names(family)
+    if (!all(c("family","link") %in% fnames))
         stop("'family' must contain at least 'family' and 'link' components")
-    ## FIXME: warning/message if 'family' doesn't contain 'variance' ?
-
+    if (length(miss_comp <- setdiff(c("linkfun","variance"),fnames))>0) {
+        warning("some components missing from ",sQuote("family"),
+                ": downstream methods may fail")
+    }
     if (grepl("^quasi", family$family))
         stop('"quasi" families cannot be used in glmmTMB')
 
@@ -546,9 +589,12 @@ glmmTMB <- function (
     environment(formula) <- parent.frame()
     call$formula <- mc$formula <- formula
     ## add offset-specified-as-argument to formula as + offset(...)
-    if (!is.null(offset)) {
+    ## need evaluate offset within envi
+    if (!is.null(eval(substitute(offset),data,
+                      enclos=environment(formula)))) {
         formula <- addForm0(formula,makeOp(substitute(offset),op=quote(offset)))
     }
+
 
     environment(ziformula) <- environment(formula)
     call$ziformula <- ziformula
@@ -648,7 +694,8 @@ glmmTMB <- function (
                    family=family,
                    se=se,
                    call=call,
-                   verbose=verbose)
+                   verbose=verbose,
+                   REML=REML)
 
     ## Allow for adaptive control parameters
     TMBStruc$control <- lapply(control, eval, envir=TMBStruc)
@@ -824,7 +871,7 @@ fitTMB <- function(TMBStruc) {
         if(control$profile)
             sdr <- sdreport(obj, hessian.fixed=h)
         else
-            sdr <- sdreport(obj)
+            sdr <- sdreport(obj, getJointPrecision=TMBStruc$REML)
         ## FIXME: assign original rownames to fitted?
     } else {
         sdr <- NULL
@@ -865,7 +912,8 @@ fitTMB <- function(TMBStruc) {
                                 reTrms = lapply(list(cond=condList, zi=ziList),
                                                 stripReTrms),
                                 reStruc = namedList(condReStruc, ziReStruc),
-                                allForm))
+                                allForm,
+                                REML))
     ## FIXME: are we including obj and frame or not?
     ##  may want model= argument as in lm() to exclude big stuff from the fit
     ## If we don't include obj we need to get the basic info out

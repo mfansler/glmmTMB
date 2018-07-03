@@ -14,7 +14,7 @@ dd$y <- rbeta(N,shape1=m*d,shape2=(1-m)*d)
 ## ----modbeta1------------------------------------------------------------
 ## location only
 m1 <- glmmTMB(y~x,
-              family=list(family="beta",link="logit"),
+              family=beta_family(),
               data=dd)
 ## add model for dispersion
 m2 <- update(m1,dispformula=~x)

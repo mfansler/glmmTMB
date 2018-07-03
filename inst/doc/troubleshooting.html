@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 
-<meta name="date" content="2018-05-10" />
+<meta name="date" content="2018-07-02" />
 
 <title>Troubleshooting with glmmTMB</title>
 
@@ -68,7 +68,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Troubleshooting with glmmTMB</h1>
-<h4 class="date"><em>2018-05-10</em></h4>
+<h4 class="date"><em>2018-07-02</em></h4>
 
 
 
@@ -79,7 +79,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <div id="model-convergence-problem-non-positive-definite-hessian-matrix" class="section level2">
 <h2>Model convergence problem; non-positive-definite Hessian matrix</h2>
 <p>You may see the same warning as in the following example:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">zinbm0 =<span class="st"> </span><span class="kw">glmmTMB</span>(count<span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span><span class="op">|</span>site), <span class="dt">zi=</span><span class="op">~</span>spp, Salamanders, <span class="dt">family=</span><span class="st">&quot;nbinom2&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">zinbm0 =<span class="st"> </span><span class="kw">glmmTMB</span>(count<span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span><span class="op">|</span>site), <span class="dt">zi=</span><span class="op">~</span>spp, Salamanders, <span class="dt">family=</span>nbinom2)</code></pre></div>
 <pre><code>## Warning in fitTMB(TMBStruc): Model convergence problem; non-positive-
 ## definite Hessian matrix. See vignette('troubleshooting')</code></pre>
 <p>This error states that the point that <code>glmmTMB</code> has identified as the putative maximum-likelihood estimate, the curvature of the log-likelihood surface does not seem to be consistent with <code>glmmTMB</code> really having found a maximum: instead, it is upward-curving, or flat, in some direction(s).</p>
@@ -132,10 +132,10 @@ zinbm0_A =<span class="st"> </span><span class="kw">update</span>(zinbm0, <span 
 ##  Groups Name        Std.Dev. 
 ##  spp    (Intercept) 0.0078215</code></pre>
 <!-- FIXME: updating here does weird things
-zinbm1 = update(zinbm0, ziformula=~mined, Salamanders, family="nbinom2")
+zinbm1 = update(zinbm0, ziformula=~mined, Salamanders, family=nbinom2)
 -->
 <p>The original analysis considered variation in zero-inflation by site status (mined or not mined) rather than by species - this simpler model only tries to estimate two parameters (mined + difference between mined and no-mining) rather than 7 (one per species) for the zero-inflation model.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">zinbm1 =<span class="st"> </span><span class="kw">glmmTMB</span>(count<span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span><span class="op">|</span>site), <span class="dt">zi=</span><span class="op">~</span>mined, Salamanders, <span class="dt">family=</span><span class="st">&quot;nbinom2&quot;</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">zinbm1 =<span class="st"> </span><span class="kw">glmmTMB</span>(count<span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span><span class="op">|</span>site), <span class="dt">zi=</span><span class="op">~</span>mined, Salamanders, <span class="dt">family=</span>nbinom2)
 <span class="kw">fixef</span>(zinbm1)[[<span class="st">&quot;zi&quot;</span>]]</code></pre></div>
 <pre><code>## (Intercept)     minedno 
 ##   0.3787986 -17.5118413</code></pre>
@@ -154,7 +154,7 @@ cc =<span class="st"> </span><span class="kw">confint</span>(zinbm1,<span class=
 </div>
 <div id="model-convergence-problem-eigenvalue-problems" class="section level2">
 <h2>Model convergence problem: eigenvalue problems</h2>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">m1 =<span class="st"> </span><span class="kw">glmmTMB</span>(count<span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>mined <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span><span class="op">|</span>site), <span class="dt">zi=</span><span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>mined, Salamanders, <span class="dt">family=</span><span class="st">&quot;genpois&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">m1 =<span class="st"> </span><span class="kw">glmmTMB</span>(count<span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>mined <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span><span class="op">|</span>site), <span class="dt">zi=</span><span class="op">~</span>spp <span class="op">+</span><span class="st"> </span>mined, Salamanders, <span class="dt">family=</span>genpois)</code></pre></div>
 <pre><code>## Warning in fitTMB(TMBStruc): Model convergence problem; extreme or very
 ## small eigen values detected. See vignette('troubleshooting')</code></pre>
 <p>In this example, the fixed-effect covariance matrix is <code>NaN</code>. It may have to do with the generalized Poisson (<code>genpois</code>) distribution, which is known to have convergence problems; luckily, the negative binomial (<code>nbinom1</code> and <code>nbinom2</code>) and/or Conway-Maxwell Poisson (<code>compois</code>) are good alternatives.</p>
@@ -177,7 +177,7 @@ cc =<span class="st"> </span><span class="kw">confint</span>(zinbm1,<span class=
 <div id="nanan-gradient-evaluation" class="section level2">
 <h2>NA/NaN gradient evaluation</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dat1 =<span class="st"> </span><span class="kw">expand.grid</span>(<span class="dt">y=</span><span class="op">-</span><span class="dv">1</span><span class="op">:</span><span class="dv">1</span>, <span class="dt">rep=</span><span class="dv">1</span><span class="op">:</span><span class="dv">10</span>)
-m1 =<span class="st"> </span><span class="kw">glmmTMB</span>(y<span class="op">~</span><span class="dv">1</span>, dat1, <span class="dt">family=</span><span class="st">&quot;nbinom2&quot;</span>)</code></pre></div>
+m1 =<span class="st"> </span><span class="kw">glmmTMB</span>(y<span class="op">~</span><span class="dv">1</span>, dat1, <span class="dt">family=</span>nbinom2)</code></pre></div>
 <pre><code>## Error in nlminb(start = par, objective = fn, gradient = gr, control = control$optCtrl): NA/NaN gradient evaluation</code></pre>
 <pre><code>## Timing stopped at: 0.004 0.001 0.004</code></pre>
 <p>The error occurs here because the negative binomial distribution is not appropriate for data with negative values.</p>

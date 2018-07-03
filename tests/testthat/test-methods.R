@@ -11,9 +11,15 @@ if (getRversion() < "3.3.0") {
 }
 
 ## FIXME: fit these centrally and restore, to save time
+fm1   <- glmmTMB(Reaction ~ Days + (1| Subject), sleepstudy)
 fm2   <- glmmTMB(Reaction ~ Days + (Days| Subject), sleepstudy)
 fm2diag   <- glmmTMB(Reaction ~ Days + diag(Days| Subject), sleepstudy)
 fm0   <- update(fm2, . ~ . -Days)
+## binomial, numeric response
+fm2Bn  <- update(fm2, as.numeric(Reaction>median(Reaction)) ~ .,
+                 family=binomial)
+## binomial, factor response
+fm2Bf  <- update(fm2, factor(Reaction>median(Reaction)) ~ ., family=binomial)
 fm2P  <- update(fm2, round(Reaction) ~ ., family=poisson)
 fm2G  <- update(fm2, family=Gamma(link="log"))
 fm2NB <- update(fm2P, family=nbinom2)
@@ -191,6 +197,14 @@ test_that("confint", {
     ## tmbr <- glmmTMB:::tmbroot(fm2$obj,name=1)
 })
 
+test_that("profile", {
+    p1_th <- profile(fm1,parm="theta_",npts=4)
+    expect_true(all(p1_th$.par=="theta_1|Subject.1"))
+    p1_b <- profile(fm1,parm="beta_",npts=4)
+    expect_equal(unique(as.character(p1_b$.par)),
+                 c("(Intercept)","Days"))
+})
+
 test_that("vcov", {
     expect_equal(dim(vcov(fm2)[[1]]),c(2,2))
     expect_equal(dim(vcov(fm2,full=TRUE)),c(6,6))
@@ -226,3 +240,8 @@ test_that("binomial", {
     s2 <- simulate(f2, 5)
     expect_equal(max(abs(as.matrix(s1) - as.matrix(s2))), 0)
 })
+
+test_that("residuals from binomial factor responses", {
+    expect_equal(residuals(fm2Bf),residuals(fm2Bn))
+})
+          

@@ -2,7 +2,7 @@
 library(glmmTMB)
 
 ## ----non-pos-def,cache=TRUE----------------------------------------------
-zinbm0 = glmmTMB(count~spp + (1|site), zi=~spp, Salamanders, family="nbinom2")
+zinbm0 = glmmTMB(count~spp + (1|site), zi=~spp, Salamanders, family=nbinom2)
 
 ## ----fixef_zinbm0--------------------------------------------------------
 fixef(zinbm0)
@@ -24,7 +24,7 @@ fixef(zinbm0_B)[["zi"]]
 VarCorr(zinbm0_B)
 
 ## ----zinbm1,cache=TRUE---------------------------------------------------
-zinbm1 = glmmTMB(count~spp + (1|site), zi=~mined, Salamanders, family="nbinom2")
+zinbm1 = glmmTMB(count~spp + (1|site), zi=~mined, Salamanders, family=nbinom2)
 fixef(zinbm1)[["zi"]]
 
 ## ----zinbm1_confint,cache=TRUE-------------------------------------------
@@ -35,7 +35,7 @@ cc = confint(zinbm1,method="uniroot",parm=9, parm.range=c(-20,20))
 print(cc)
 
 ## ----genpois_NaN,cache=TRUE----------------------------------------------
-m1 = glmmTMB(count~spp + mined + (1|site), zi=~spp + mined, Salamanders, family="genpois")
+m1 = glmmTMB(count~spp + mined + (1|site), zi=~spp + mined, Salamanders, family=genpois)
 
 ## ----Cholmod, eval=FALSE-------------------------------------------------
 #  Cholmod warning 'matrix not positive definite'
@@ -45,5 +45,5 @@ m1 = glmmTMB(count~spp + mined + (1|site), zi=~spp + mined, Salamanders, family=
 
 ## ----NA gradient, error=TRUE, warning=FALSE------------------------------
 dat1 = expand.grid(y=-1:1, rep=1:10)
-m1 = glmmTMB(y~1, dat1, family="nbinom2")
+m1 = glmmTMB(y~1, dat1, family=nbinom2)
 

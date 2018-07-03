@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 
-<meta name="date" content="2018-05-10" />
+<meta name="date" content="2018-07-02" />
 
 <title>Miscellaneous examples</title>
 
@@ -68,7 +68,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Miscellaneous examples</h1>
-<h4 class="date"><em>2018-05-10</em></h4>
+<h4 class="date"><em>2018-07-02</em></h4>
 
 
 
@@ -85,7 +85,7 @@ dd<span class="op">$</span>y &lt;-<span class="st"> </span><span class="kw">rbet
 <p>Fit models:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">## location only
 m1 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(y<span class="op">~</span>x,
-              <span class="dt">family=</span><span class="kw">list</span>(<span class="dt">family=</span><span class="st">&quot;beta&quot;</span>,<span class="dt">link=</span><span class="st">&quot;logit&quot;</span>),
+              <span class="dt">family=</span><span class="kw">beta_family</span>(),
               <span class="dt">data=</span>dd)
 ## add model for dispersion
 m2 &lt;-<span class="st"> </span><span class="kw">update</span>(m1,<span class="dt">dispformula=</span><span class="op">~</span>x)</code></pre></div>

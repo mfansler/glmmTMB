@@ -12,7 +12,7 @@
 
 <meta name="author" content="Mollie Brooks" />
 
-<meta name="date" content="2018-05-10" />
+<meta name="date" content="2018-07-02" />
 
 <title>Simulate from a fitted glmmTMB model</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Simulate from a fitted glmmTMB model</h1>
 <h4 class="author"><em>Mollie Brooks</em></h4>
-<h4 class="date"><em>2018-05-10</em></h4>
+<h4 class="date"><em>2018-07-02</em></h4>
 
 
 
@@ -83,6 +83,10 @@ owls_nb1 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(SiblingNe
 <span class="st">                             </span>(<span class="dv">1</span><span class="op">|</span>Nest)<span class="op">+</span><span class="kw">offset</span>(<span class="kw">log</span>(BroodSize)),
                           <span class="dt">family =</span> <span class="kw">list</span>(<span class="dt">family=</span><span class="st">&quot;nbinom1&quot;</span>,<span class="dt">link=</span><span class="st">&quot;log&quot;</span>),
                           <span class="dt">ziformula =</span> <span class="op">~</span><span class="dv">1</span>, <span class="dt">data=</span>Owls)</code></pre></div>
+<pre><code>## Warning in glmmTMB(SiblingNegotiation ~ FoodTreatment * SexParent + (1 | :
+## some components missing from 'family': downstream methods may fail</code></pre>
+<pre><code>## Warning in mkTMBStruc(formula, ziformula, dispformula, combForm, mf, fr, :
+## specifying 'family' as a plain list is deprecated</code></pre>
 <p>Then we can simulate from the fitted model with the <code>simulate.glmmTMB</code> function. It produces a list of simulated observation vectors, each of which is the same size as the original vector of observations. The default is to only simulate one vector (<code>nsim=1</code>) but we still return a list for consistency.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">simo=<span class="kw">simulate</span>(owls_nb1, <span class="dt">seed=</span><span class="dv">1</span>)
 Simdat=Owls
