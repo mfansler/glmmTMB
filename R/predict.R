@@ -67,19 +67,23 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE)
 ##' (i.e., synonymous with \code{"response"} in the absence of zero-inflation}
 ##' \item{"zprob"}{the probability of a structural zero (gives an error
 ##' for non-zero-inflated models)}
-##' ##' \item{"zilink"}{predicted zero-inflation probability on the scale of
+##' \item{"zlink"}{predicted zero-inflation probability on the scale of
 ##' the logit link function}
 ##' }
 ##' @param na.action how to handle missing values in \code{newdata} (see \code{\link{na.action}});
 ##' the default (\code{na.pass}) is to predict \code{NA}
 ##' @param debug (logical) return the \code{TMBStruc} object that will be
 ##' used internally for debugging?
-##' @param re.form (not yet implemented) specify which random effects to condition on when predicting
+##' @param re.form (not yet implemented) specify which random effects to condition on when predicting. To compute population-level predictions for a given grouping variable (i.e., setting \emph{all} random effects for that grouping variable to zero), set the group value to \code{NA}.
 ##' @param allow.new.levels allow previously unobserved levels in random-effects variables? see details.
 ##' @param \dots unused - for method compatibility
 ##' @details
-##' Prediction of new random effect levels is possible as long as the model specification (fixed effects and parameters) is kept constant.
+##' \itemize{
+##' \item Prediction of new random effect levels is possible as long as the model specification (fixed effects and parameters) is kept constant.
 ##' However, to ensure intentional usage, a warning is triggered if \code{allow.new.levels=FALSE} (the default).
+##' \item Prediction using "data-dependent bases" (variables whose scaling or transformation depends on the original data, e.g. \code{\link{poly}}, \code{\link[splines]{ns}}, or \code{\link{poly}}) should work properly; however, users are advised to check results extra-carefully when using such variables. Models with different versions of the same data-dependent basis type in different components (e.g. \code{formula= y ~ poly(x,3), dispformula= ~poly(x,2)}) will probably \emph{not} produce correct predictions.
+##' }
+##' 
 ##' @examples
 ##' data(sleepstudy,package="lme4")
 ##' g0 <- glmmTMB(Reaction~Days+(Days|Subject),sleepstudy)
@@ -88,6 +92,10 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE)
 ##' nd <- sleepstudy[1,]
 ##' nd$Subject <- "new"
 ##' predict(g0, newdata=nd, allow.new.levels=TRUE)
+##' ## population-level prediction
+##' nd_pop <- data.frame(Days=unique(sleepstudy$Days),
+##'                      Subject=NA)
+##' predict(g0, newdata=nd_pop)
 ##' @importFrom TMB sdreport
 ##' @importFrom stats optimHess model.frame na.fail na.pass napredict
 ##' @export
@@ -123,18 +131,35 @@ predict.glmmTMB <- function(object,newdata=NULL,
 
   mf$drop.unused.levels <- TRUE
   mf[[1]] <- as.name("model.frame")
-  mf$formula <- RHSForm(object$modelInfo$allForm$combForm, as.form=TRUE)
-    
+  ## substitute *combined* data frame, in hopes of getting all of the
+  ##  bits we need for any of the model frames ...  
+  tt <- terms(object$modelInfo$allForm$combForm)
+  pv <- attr(terms(model.frame(object)),"predvars")
+  attr(tt,"predvars") <- fix_predvars(pv,tt)
+  mf$formula <- RHSForm(tt, as.form=TRUE)
+
+  ## FIXME:: fix_predvars is ugly, and should be refactored.
+  ## the best solution is probably to attach predvars information
+  ## to formulas/terms for individual components
+  ## {conditional, zi, disp} * {fixed, random}
+  ## and fix things downstream, where the actual model matrices
+  ## are constructed.  
+  ##
+  ## There's a fairly high chance of breakage with crazy/unforeseen
+  ## usage of data-dependent bases (e.g. polynomials or splines with
+  ## different arguments in different parts of the model ...)
+  ## Can we detect/warn about these?
+  ##   
   if (is.null(newdata)) {
     mf$data <- mc$data ## restore original data
-    newFr <- object$fr
+    newFr <- object$frame
   } else {
     mf$data <- newdata
     mf$na.action <- na.action
     newFr <- eval.parent(mf)
   }
 
-  omi <- object$modelInfo  ## shorthand
+  omi <- object$modelInfo  ## shorthand ("**o**bject$**m**odel**I**nfo")
 
   respCol <- match(respNm <- names(omi$respCol),names(newFr))
   ## create *or* overwrite response column for prediction data with NA
@@ -177,6 +202,7 @@ predict.glmmTMB <- function(object,newdata=NULL,
                                yobs=yobs,
                                respCol=respCol,
                                weights=model.weights(augFr),
+                               contrasts=omi$contrasts,
                                family=omi$family,
                                ziPredictCode=ziPredNm,
                                doPredict=as.integer(se.fit),

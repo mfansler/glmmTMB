@@ -10,7 +10,7 @@ library(ggplot2); theme_set(theme_bw())
 data(Owls)
 owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
                              (1|Nest)+offset(log(BroodSize)),
-                          family = list(family="nbinom1",link="log"),
+                          family = nbinom1,
                           ziformula = ~1, data=Owls)
 
 ## ----sim-----------------------------------------------------------------

@@ -71,14 +71,14 @@ profile.glmmTMB <- function(fitted,
     pnames <- names(sds) <- rownames(vv)
     intnames <- names(fitted$obj$env$last.par)
     random <- fitted$obj$env$random
-    intnames <- intnames[-random]
+    intnames <- intnames[setdiff(seq_len(length(intnames)),random)]
 
     ## get pars: need to match up names with internal positions
     if (is.null(parm)) parm <-  seq_along(sds)
     if (is.character(parm)) {
-        if (parm=="theta_") {
+        if (identical(parm,"theta_")) {
             parm <- which(intnames=="theta")
-        } else if (parm=="beta_") {
+        } else if (identical(parm,"beta_")) {
             ## include both conditional and zi params
             ##   but not dispersion params
             parm <- grep("^beta(zi)?$",intnames)

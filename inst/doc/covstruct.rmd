@@ -7,6 +7,8 @@ vignette: >
   %\VignetteIndexEntry{random effect structures}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
+params:
+  EVAL: !r identical(Sys.getenv("NOT_CRAN"), "true")
 ---
 
 ```{r setup, include=FALSE, message=FALSE}
@@ -15,7 +17,7 @@ library(glmmTMB)
 library(MASS)  ## for mvrnorm()
 library(TMB) ## for tmbprofile()
 ## devtools::install_github("kaskr/adcomp/TMB")  ## get development version
-knitr::opts_chunk$set(echo = TRUE, eval=TRUE)
+knitr::opts_chunk$set(echo = TRUE, eval=if (isTRUE(exists("params"))) params$EVAL else FALSE)
 ## turned off caching for now: got error in chunk 'fit.us.2'
 ## Error in retape() : 
 ##   Error when reading the variable: 'thetaf'. Please check data and parameters.
@@ -75,7 +77,7 @@ The following R-code draws a simulation based on these parameter
 values.  For illustration purposes we consider a very short time
 series.
 
-```{r sim1}
+```{r sim1, eval=TRUE}
 n <- 6                                              ## Number of time points
 x <- mvrnorm(mu = rep(0,n),
              Sigma = .7 ^ as.matrix(dist(1:n)) )    ## Simulate the process using the MASS package
@@ -128,7 +130,7 @@ $e^{-\theta}$ (First off-diagonal of "Corr") in the output:
 
 > FIXME: Try a longer time series when the print.VarCorr is fixed.
 
-```{r ar0fit,echo=FALSE, eval=TRUE}
+```{r ar0fit,echo=FALSE}
 glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
 ```
 
@@ -451,7 +453,7 @@ for variance parameters) and their order.
 
 ### Unstructured
 
-For an unstructured matrix of size `n` parameters `1:n` represent the log-standard deviations while the remaining `n(n-1)/2` (i.e. `(n+1):(n:(n*(n+1)/2))`) are the elements of the Cholesky factor of the correlation matrix, filled in row-wise order (see [TMB documentation](http://kaskr.github.io/adcomp/classUNSTRUCTURED__CORR__t.html))
+For an unstructured matrix of size `n` parameters `1:n` represent the log-standard deviations while the remaining `n(n-1)/2` (i.e. `(n+1):(n:(n*(n+1)/2))`) are the elements of the *scaled* Cholesky factor of the correlation matrix, filled in row-wise order (see [TMB documentation](http://kaskr.github.io/adcomp/classUNSTRUCTURED__CORR__t.html)). In particular, if $L$ is the lower-triangular matrix with 1 on the diagonal and the correlation parameters in the lower triangle, then the correlation matrix is defined as $\Sigma = D^{-1/2} L L^\top D^{-1/2}$, where $D = \textrm{diag}(L L^\top)$. For a single correlation parameter $\theta_0$, this works out to $\rho = \theta_0/(1+\theta_0^2)$.
 
 ```{r fit.us.2}
 vv0 <- VarCorr(fit.us)

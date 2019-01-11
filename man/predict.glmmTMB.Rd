@@ -4,10 +4,10 @@
 \alias{predict.glmmTMB}
 \title{prediction}
 \usage{
-\method{predict}{glmmTMB}(object, newdata = NULL, se.fit = FALSE, re.form,
-  allow.new.levels = FALSE, type = c("link", "response", "conditional",
-  "zprob", "zlink"), zitype = NULL, na.action = na.pass, debug = FALSE,
-  ...)
+\method{predict}{glmmTMB}(object, newdata = NULL, se.fit = FALSE,
+  re.form, allow.new.levels = FALSE, type = c("link", "response",
+  "conditional", "zprob", "zlink"), zitype = NULL, na.action = na.pass,
+  debug = FALSE, ...)
 }
 \arguments{
 \item{object}{a \code{glmmTMB} object}
@@ -16,7 +16,7 @@
 
 \item{se.fit}{return the standard errors of the predicted values?}
 
-\item{re.form}{(not yet implemented) specify which random effects to condition on when predicting}
+\item{re.form}{(not yet implemented) specify which random effects to condition on when predicting. To compute population-level predictions for a given grouping variable (i.e., setting \emph{all} random effects for that grouping variable to zero), set the group value to \code{NA}.}
 
 \item{allow.new.levels}{allow previously unobserved levels in random-effects variables? see details.}
 
@@ -32,7 +32,7 @@ and \code{mu} otherwise}
 (i.e., synonymous with \code{"response"} in the absence of zero-inflation}
 \item{"zprob"}{the probability of a structural zero (gives an error
 for non-zero-inflated models)}
-##' \item{"zilink"}{predicted zero-inflation probability on the scale of
+\item{"zlink"}{predicted zero-inflation probability on the scale of
 the logit link function}
 }}
 
@@ -50,8 +50,11 @@ used internally for debugging?}
 prediction
 }
 \details{
-Prediction of new random effect levels is possible as long as the model specification (fixed effects and parameters) is kept constant.
+\itemize{
+\item Prediction of new random effect levels is possible as long as the model specification (fixed effects and parameters) is kept constant.
 However, to ensure intentional usage, a warning is triggered if \code{allow.new.levels=FALSE} (the default).
+\item Prediction using "data-dependent bases" (variables whose scaling or transformation depends on the original data, e.g. \code{\link{poly}}, \code{\link[splines]{ns}}, or \code{\link{poly}}) should work properly; however, users are advised to check results extra-carefully when using such variables. Models with different versions of the same data-dependent basis type in different components (e.g. \code{formula= y ~ poly(x,3), dispformula= ~poly(x,2)}) will probably \emph{not} produce correct predictions.
+}
 }
 \examples{
 data(sleepstudy,package="lme4")
@@ -61,4 +64,8 @@ predict(g0, sleepstudy)
 nd <- sleepstudy[1,]
 nd$Subject <- "new"
 predict(g0, newdata=nd, allow.new.levels=TRUE)
+## population-level prediction
+nd_pop <- data.frame(Days=unique(sleepstudy$Days),
+                     Subject=NA)
+predict(g0, newdata=nd_pop)
 }

@@ -4,12 +4,44 @@
 \title{glmmTMB News}
 \encoding{UTF-8}
 
+\section{CHANGES IN VERSION 0.2.3}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{ranef} now returns information about conditional variances (as
+      attributes of the individual random effects terms) by default;
+      this information can easily be retrieved by
+      \code{as.data.frame(ranef(.))}.
+      \item \code{coef} method now available: as in \code{lme4}, returns
+      sum of fixed + random effects for each random-effects
+      level. (Conditional variances for \code{coef} \emph{not} yet available.)
+      \item simulate works for models with genpois family
+      \item parametric bootstrapping should work, using
+      \code{\link[lme4]{bootMer}} from the \code{lme4} package as a front end.
+    } % itemize
+  } % new features
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item models with multiple types of RE (e.g. ar1 and us) 
+      may have failed previously (GH #329)
+      \item \code{predict} was not handling data-dependent predictors (e.g. \code{poly}, \code{spline}, \code{scale}) correctly
+      \item \code{profile} now works for models without random effects
+    }
+  } % bug fixes
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item The value returned from \code{simulate} for binomial models
+      is now a non-standard data frame where each element contains a
+      two-column matrix (as in the base-R \code{\link{simulate}} method for
+      binomial GLMS).
+    } % itemize
+  } % user-visible
+} % version 0.2.3
 \section{CHANGES IN VERSION 0.2.2}{
   \subsection{NEW FEATURES}{
     \itemize{
       \item REML is now an option (GH #352). It is typically only for 
       Gaussian response variables, but can also be useful 
-      for some non-Gaussian response variabes if used with caution 
+      for some non-Gaussian response variables if used with caution 
       (i.e. simulate a test case first).
     }
   }

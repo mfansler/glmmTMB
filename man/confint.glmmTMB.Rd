@@ -4,9 +4,10 @@
 \alias{confint.glmmTMB}
 \title{Calculate confidence intervals}
 \usage{
-\method{confint}{glmmTMB}(object, parm, level = 0.95, method = c("wald",
-  "Wald", "profile", "uniroot"), component = c("all", "cond", "zi", "other"),
-  estimate = TRUE, parallel = c("no", "multicore", "snow"),
+\method{confint}{glmmTMB}(object, parm, level = 0.95,
+  method = c("wald", "Wald", "profile", "uniroot"),
+  component = c("all", "cond", "zi", "other"), estimate = TRUE,
+  parallel = c("no", "multicore", "snow"),
   ncpus = getOption("profile.ncpus", 1L), cl = NULL, ...)
 }
 \arguments{
@@ -32,7 +33,7 @@ function)}
 \item{cl}{cluster to use for parallel computation}
 
 \item{...}{arguments may be passed to \code{\link{profile.merMod}} or
-\code{\link{tmbroot}}}
+\code{\link[TMB]{tmbroot}}}
 }
 \description{
 Calculate confidence intervals
@@ -58,8 +59,9 @@ functions for each specified parameter.}
 \examples{
 data(sleepstudy, package="lme4")
 model <- glmmTMB(Reaction ~ Days + (1|Subject), sleepstudy)
-confint(model)
-\dontrun{
+model2 <- glmmTMB(Reaction ~ Days + (1|Subject), sleepstudy,
+    dispformula= ~I(Days>8))
+confint(model)  ## Wald/delta-method CIs
+confint(model,parm="theta_")  ## Wald/delta-method CIs
 confint(model,parm=1,method="profile")
-}
 }

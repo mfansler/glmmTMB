@@ -1,7 +1,7 @@
 stopifnot(require("testthat"),
           require("glmmTMB"))
 
-data(sleepstudy, cbpp,
+data(sleepstudy, cbpp, Pastes,
      package = "lme4")
 
 if (getRversion() < "3.3.0") {
@@ -11,6 +11,7 @@ if (getRversion() < "3.3.0") {
 }
 
 ## FIXME: fit these centrally and restore, to save time
+fm_noRE   <- glmmTMB(Reaction ~ Days , sleepstudy)
 fm1   <- glmmTMB(Reaction ~ Days + (1| Subject), sleepstudy)
 fm2   <- glmmTMB(Reaction ~ Days + (Days| Subject), sleepstudy)
 fm2diag   <- glmmTMB(Reaction ~ Days + diag(Days| Subject), sleepstudy)
@@ -27,6 +28,27 @@ fm2NB <- update(fm2P, family=nbinom2)
 fm3   <- update(fm2, . ~ Days)
 fm3G <-  update(fm3, family=Gamma(link="log"))
 fm3NB <- update(fm3, round(Reaction) ~ ., family=nbinom2)
+## z-i model
+fm3ZIP <- update(fm2, round(Reaction) ~ ., family=poisson,
+                 ziformula=~(1|Subject))
+## separate-terms model
+fm2diag2   <- update(fm2, . ~ Days + (1| Subject)+ (0+Days|Subject))
+
+## model with two different grouping variables
+fmP <- glmmTMB(strength ~ cask + (1|batch) + (1|sample), data=Pastes)
+
+yb <- cbind(1:10,10)
+ddb <- data.frame(y=I(yb))
+ddb <- within(ddb, {
+     w <- rowSums(yb)
+     prop <- y[,1]/w
+})
+f1b <- glmmTMB(y ~ 1, family=binomial(), data=ddb)
+f2b <- glm    (y ~ 1, family=binomial(), data=ddb)
+f3b <- glmmTMB(prop ~ 1, weights=w, family=binomial(),
+                   data=ddb)
+f4b <- glmmTMB(y[,1]/w ~ 1, weights=w, family=binomial(),
+                   data=ddb)
 
 context("basic methods")
 
@@ -158,27 +180,40 @@ test_that("confint", {
     expect_warning(confint(fm2,type="junk"),
                    "extra arguments ignored")
     ## Gamma test Std.Dev and sigma
-    ci <- confint(fm2G, estimate=FALSE)
-    ci.expect <- structure(c(5.481017, 0.024778, 0.06761,  0.011595, 0.072046,
-                             5.584018, 0.042922, 0.150456, 0.026438, 0.090737),
-                           .Dim = c(5L,  2L),
-                           .Dimnames = list(c("cond.(Intercept)", "cond.Days",
-                                              "cond.Std.Dev.(Intercept)",
-                                              "cond.Std.Dev.Days",
-                                              "sigma"),
+    ci.2G <- confint(fm2G, estimate=FALSE)
+    ci.2G.expect <- structure(c(5.4810173444768, 0.0247781468857994, 0.0676097043327788, 
+                             0.0115949839191128, -0.518916570291726, 0.0720456818399729, 5.58401849115119, 
+                             0.0429217639222305, 0.150456372618643, 0.0264376535768207, 0.481694558481224, 
+                             0.0907365112123184),
+                           .Dim = c(6L, 2L),
+                           .Dimnames = list(c("cond.(Intercept)", 
+                                              "cond.Days", "cond.Std.Dev.(Intercept)",
+                                              "cond.Std.Dev.Days", "cond.Cor.Days.(Intercept)", "sigma"),
                                             c("2.5 %", "97.5 %")))
-    expect_equal(ci, ci.expect, tolerance=1e-6)
+    expect_equal(ci.2G, ci.2G.expect, tolerance=1e-6)
     ## nbinom2 test Std.Dev and sigma
-    ci <- confint(fm2NB, estimate=FALSE)
-    ci.expect <- structure(c(5.480987, 0.024816, 0.066177, 0.011344, 183.810585,
-                             5.584226, 0.042899, 0.150918, 0.026355, 444.735666),
-                           .Dim = c(5L,  2L),
-                           .Dimnames = list(c("cond.(Intercept)", "cond.Days",
-                                              "cond.Std.Dev.(Intercept)",
-                                              "cond.Std.Dev.Days", "sigma"),
-                                            c("2.5 %", "97.5 %")))
-    expect_equal(ci, ci.expect, tolerance=1e-6)
+    ci.2NB <- confint(fm2NB, estimate=FALSE)
+    ci.2NB.expect <-
+        structure(c(5.48098713986992, 0.0248163859092965, 0.066177247560203, 
+                    0.0113436356932709, -0.520883841816814, 183.810584738707, 5.58422550782448, 
+                    0.0428993227431795, 0.150917850214506, 0.026354988318893, 0.502211676507888, 
+                    444.735668635694),
+                  .Dim = c(6L, 2L),
+                  .Dimnames = list(c("cond.(Intercept)", 
+                                     "cond.Days",
+                                     "cond.Std.Dev.(Intercept)", "cond.Std.Dev.Days", 
+                                     "cond.Cor.Days.(Intercept)", "sigma"), c("2.5 %", "97.5 %")))
+    expect_equal(ci.2NB, ci.2NB.expect, tolerance=1e-6)
     ## profile CI
+    ## ... no RE
+    ci.prof0 <- confint(fm_noRE,method="profile", npts=3)
+    expect_equal(ci.prof0,
+                 structure(c(238.216039176535, 7.99674863649355, 7.51779308310198, 
+                             264.368471102549, 12.8955469713508, 7.93347860201449),
+                           .Dim = 3:2, .Dimnames = list(c("(Intercept)", "Days", "d~(Intercept)"),
+                                                        c("2.5 %", "97.5 %"))),
+                 tolerance=1e-5)
+
     ci.prof <- confint(fm2,parm=1,method="profile", npts=3)
     expect_equal(ci.prof,
                  structure(c(237.27249, 265.13383),
@@ -193,8 +228,8 @@ test_that("confint", {
         .Dimnames = list("(Intercept)", c("2.5 %", "97.5 %", "Estimate"))),
                  tolerance=1e-6)
     ## check against 'raw' tmbroot
-    ## (not exported (yet?) ...)
-    ## tmbr <- glmmTMB:::tmbroot(fm2$obj,name=1)
+    tmbr <- TMB::tmbroot(fm2$obj,name=1)
+    expect_equal(ci.uni[1:2],unname(c(tmbr)))
 })
 
 test_that("profile", {
@@ -203,6 +238,11 @@ test_that("profile", {
     p1_b <- profile(fm1,parm="beta_",npts=4)
     expect_equal(unique(as.character(p1_b$.par)),
                  c("(Intercept)","Days"))
+})
+
+test_that("profile (no RE)", {
+    p0_th <- profile(fm_noRE,npts=4)
+    expect_equal(dim(p0_th),c(43,3))
 })
 
 test_that("vcov", {
@@ -229,19 +269,110 @@ test_that("simulate", {
 	expect_equal(sm2NB, sleepstudy$Reaction, tol=20)
 })
 
+test_that("formula", {
+    expect_equal(formula(fm2),Reaction ~ Days + (Days | Subject))
+    expect_equal(formula(fm2, fixed.only=TRUE),Reaction ~ Days)
+    expect_equal(formula(fm2, component="disp"), ~1)
+    expect_equal(formula(fm2, component="disp", fixed.only=TRUE), ~1)
+    expect_equal(formula(fm2, component="zi"), ~0)
+    expect_equal(formula(fm2, component="zi", fixed.only=TRUE), ~0)
+})
+
 context("simulate consistency with glm/lm")
 test_that("binomial", {
-    y <- cbind(1:10,10)
-    f1 <- glmmTMB(y ~ 1, family=binomial())
-    f2 <- glm    (y ~ 1, family=binomial())
-    set.seed(1)
-    s1 <- simulate(f1, 5)
-    set.seed(1)
-    s2 <- simulate(f2, 5)
+    s1 <- simulate(f1b, 5, seed=1)
+    s2 <- simulate(f2b, 5, seed=1)
+    s3 <- simulate(f3b, 5, seed=1)
     expect_equal(max(abs(as.matrix(s1) - as.matrix(s2))), 0)
+    expect_equal(max(abs(as.matrix(s1) - as.matrix(s3))), 0)
 })
 
 test_that("residuals from binomial factor responses", {
     expect_equal(residuals(fm2Bf),residuals(fm2Bn))
 })
-          
+
+mkstr <- function(dd) {
+    ff <- which(vapply(dd,is.factor,logical(1)))
+    for (i in ff) {
+        dd[[i]] <- as.character(dd[[i]])
+    }
+    return(dd)
+}
+rr <- function(txt) {
+    read.table(header=TRUE,stringsAsFactors=FALSE,text=txt,
+               colClasses=rep(c("character","numeric"),c(5,2)))
+}
+context("Ranef etc.")
+test_that("as.data.frame(ranef(.)) works",
+  {
+      expect_equal(
+          mkstr(as.data.frame(ranef(fm3ZIP))[c("cond.1","cond.19","zi.1"),]),
+          rr(
+"        component  grpvar        term grp       condval      condsd
+cond.1       cond Subject (Intercept) 308  1.066599e-02 0.040430751
+cond.19      cond Subject        Days 308  2.752424e-02 0.007036958
+zi.1           zi Subject (Intercept) 308 -2.850238e-07 0.127106817
+"),
+tolerance=1e-5)
+      expect_equal(
+          mkstr(as.data.frame(ranef(fm2diag2))[c("cond.1","cond.19"),]),
+          rr(
+"        component  grpvar        term grp  condval    condsd
+cond.1       cond Subject (Intercept) 308 1.854597 13.294388
+cond.19      cond Subject        Days 308 9.236420  2.699692
+"),
+tolerance=1e-5)
+  })
+
+test_that("ranef(.) works with more than one grouping factor",
+{
+    expect_equal(sort(names(ranef(fmP)[["cond"]])), c("batch","sample"))
+    expect_equal(dim(as.data.frame(ranef(fmP))), c(40,6))
+})
+
+test_that("coef(.) works", {
+          cc <- coef(fm3ZIP)
+          expect_equal(cc[["cond"]][[1]][1,],
+                       structure(list(`(Intercept)` = 5.54291514202372,
+                                      Days = 0.0613847280572168),
+                                 row.names = "308", class = "data.frame"),
+                       tolerance=1e-5)
+          expect_equal(cc[["zi"]][[1]][1,,drop=FALSE],
+                       structure(list(`(Intercept)` = -13.2478200379555), row.names = "308", class = "data.frame"),
+                       tolerance=1e-5)
+})
+
+test_that("simplified coef(.) printing", {
+    op <- options(digits=2)
+    cc <- capture.output(print(coef(fm0)))          
+    expect_equal(cc[1:3],c("$Subject", "    Days (Intercept)", "308 20.6         249"))
+    options(op)
+})
+
+context("refit")
+
+## weird stuff here with environments, testing ...
+test_that("various binomial response types work", {
+    ## FIXME: test for factors, explicit cbind(.,.)
+    ## do we need to define this within this scope?
+    ddb <- data.frame(y=I(yb))
+    ddb <- within(ddb, {
+        w <- rowSums(yb)
+        prop <- y[,1]/w
+    })
+    s1 <- simulate(f1b, 1, seed=1)
+    f1 <- fixef(lme4::refit(f1b,s1[[1]]))
+    s3 <- simulate(f3b, 1, seed=1)
+    f3 <- fixef(lme4::refit(f3b,s3[[1]]))
+    expect_equal(f1,f3)
+    expect_error(lme4::refit(f4b,s3[[1]]),
+                  "can't find response in data")
+})
+
+test_that("binomial response types work with data in external scope", {
+    s1 <- simulate(f1b, 1, seed=1)
+    f1 <- fixef(lme4::refit(f1b,s1[[1]]))
+    s3 <- simulate(f3b, 1, seed=1)
+    f3 <- fixef(lme4::refit(f3b,s3[[1]]))
+    expect_equal(f1,f3)
+})

@@ -104,8 +104,8 @@ test_that("Multiple RE, reordering", {
                     data = cbpp, family=binomial())
     tmb2 <- glmmTMB(cbind(incidence, size-incidence) ~ period + (1|obs) + (1|herd),
                     data = cbpp, family=binomial())
-    expect_equal(fixef(tmb1), fixef(tmb2),                   tolerance = 1e-13)
-    expect_equal(getME(tmb1, "theta"), getME(tmb2, "theta"), tolerance = 1e-13)
+    expect_equal(fixef(tmb1), fixef(tmb2),                   tolerance = 1e-8)
+    expect_equal(getME(tmb1, "theta"), getME(tmb2, "theta")[c(2,1)], tolerance = 5e-7)
 })
 
 test_that("Alternative family specifications [via update(.)]", {
@@ -239,10 +239,25 @@ test_that("NA handling", {
                  tolerance=1e-6)
 })
 
-quine.nb1 <- MASS::glm.nb(Days ~ Sex/(Age + Eth*Lrn), data = quine)
-quine.nb2 <- glmmTMB(Days ~ Sex/(Age + Eth*Lrn), data = quine,
-                     family=nbinom2())
-quine.nb3 <- glmmTMB(Days ~ Sex + (1|Age), data = quine,
-                     family=nbinom2())
+test_that("quine NB fit", {
+    quine.nb1 <- MASS::glm.nb(Days ~ Sex/(Age + Eth*Lrn), data = quine)
+    quine.nb2 <- glmmTMB(Days ~ Sex/(Age + Eth*Lrn), data = quine,
+                         family=nbinom2())
+    expect_equal(coef(quine.nb1),fixef(quine.nb2)[["cond"]],
+                 tolerance=1e-4)
+})
+## quine.nb3 <- glmmTMB(Days ~ Sex + (1|Age), data = quine,
+##                     family=nbinom2())
 
-## FIX ME: need to actually test these things!
+test_that("contrasts arg", {
+    quine.nb1 <- MASS::glm.nb(Days ~ Sex*Age, data = quine,
+                              contrasts=list(Sex="contr.sum",Age="contr.sum"))
+    quine.nb2 <- glmmTMB(Days ~ Sex*Age, data = quine,
+                         family=nbinom2(),
+                         contrasts=list(Sex="contr.sum",Age="contr.sum"))
+    expect_equal(coef(quine.nb1),fixef(quine.nb2)[["cond"]],
+                 tolerance=1e-4)
+})
+
+
+
