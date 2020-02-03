@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE, eval=if (isTRUE(exists("params"))) params$EVA
 ## In addition: Warning message:
 ## In retape() : Expected object. Got NULL.
 set.seed(1)
+## run this in interactive session if you actually want to evaluate chunks ...
+## Sys.setenv(NOT_CRAN="true")
 
 ## ----sim1, eval=TRUE-----------------------------------------------------
 n <- 6                                              ## Number of time points
@@ -38,9 +40,9 @@ y <- x + rnorm(n)                                   ## Add measurement noise
 #  glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
 
 ## ----simGroup------------------------------------------------------------
-#  simGroup <- function(g) {
+#  simGroup <- function(g, n=6, rho=0.7) {
 #      x <- mvrnorm(mu = rep(0,n),
-#               Sigma = .7 ^ as.matrix(dist(1:n)) )    ## Simulate the process
+#               Sigma = rho ^ as.matrix(dist(1:n)) )   ## Simulate the process
 #      y <- x + rnorm(n)                               ## Add measurement noise
 #      times <- factor(1:n)
 #      group <- factor(rep(g,n))
@@ -66,7 +68,18 @@ y <- x + rnorm(n)                                   ## Add measurement noise
 #  fit.toep$sdr$pdHess ## Converged ?
 
 ## ----fit.toep.vc---------------------------------------------------------
-#  VarCorr(fit.toep)
+#  (vc.toep <- VarCorr(fit.toep))
+
+## ----fit.toep.vc.diag----------------------------------------------------
+#  vc1 <- vc.toep$cond[[1]] ## first term of var-cov for RE of conditional model
+#  summary(diag(vc1))
+#  summary(vc1[row(vc1)!=col(vc1)])
+
+## ----fit.toep.reml-------------------------------------------------------
+#  fit.toep.reml <- update(fit.toep, REML=TRUE)
+#  vc1R <- VarCorr(fit.toep.reml)$cond[[1]]
+#  summary(diag(vc1R))
+#  summary(vc1R[row(vc1R)!=col(vc1R)])
 
 ## ----fit.cs--------------------------------------------------------------
 #  fit.cs <- glmmTMB(y ~ cs(times + 0 | group), data=dat1, dispformula=~0)
@@ -142,7 +155,7 @@ y <- x + rnorm(n)                                   ## Add measurement noise
 #  d$pos <- numFactor(d$x, d$y)
 #  d$group <- factor(rep(1, nrow(d)))
 
-## ----fit_spatial_model---------------------------------------------------
+## ----fit_spatial_model, cache=TRUE---------------------------------------
 #  f <- glmmTMB(z ~ 1 + exp(pos + 0 | group), data=d)
 
 ## ----confint_sigma-------------------------------------------------------

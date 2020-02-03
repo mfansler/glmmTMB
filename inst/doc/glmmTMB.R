@@ -1,5 +1,5 @@
-## ----setopts,echo=FALSE--------------------------------------------------
-require("knitr")
+## ----setopts,echo=FALSE,message=FALSE------------------------------------
+library("knitr")
 opts_chunk$set(fig.width=5,fig.height=5,
                out.width="0.8\\textwidth",echo=TRUE)
 Rver <- paste(R.version$major,R.version$minor,sep=".")
