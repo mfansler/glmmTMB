@@ -1,4 +1,4 @@
-## ----setopts,echo=FALSE,message=FALSE------------------------------------
+## ----setopts,echo=FALSE,message=FALSE-----------------------------------------
 library("knitr")
 opts_chunk$set(fig.width=5,fig.height=5,
                out.width="0.8\\textwidth",echo=TRUE)
@@ -7,7 +7,7 @@ knit_hooks$set(document = function(x) {sub('\\usepackage[]{color}', '\\usepackag
 Rver <- paste(R.version$major,R.version$minor,sep=".")
 used.pkgs <- c("glmmTMB","bbmle")  ## packages to report below
 
-## ----packages,message=FALSE----------------------------------------------
+## ----packages,message=FALSE---------------------------------------------------
 library(glmmTMB)
 library(car)
 library(emmeans)
@@ -26,7 +26,7 @@ library(huxtable)
 L <- load(system.file("vignette_data","model_evaluation.rda",
                       package="glmmTMB"))
 
-## ----examples,eval=FALSE-------------------------------------------------
+## ----examples,eval=FALSE------------------------------------------------------
 #  owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
 #                          (1|Nest)+offset(log(BroodSize)),
 #                      contrasts=list(FoodTreatment="contr.sum",
@@ -34,7 +34,7 @@ L <- load(system.file("vignette_data","model_evaluation.rda",
 #                      family = nbinom1,
 #                      zi = ~1, data=Owls)
 
-## ----fit_model3,cache=TRUE-----------------------------------------------
+## ----fit_model3,cache=TRUE----------------------------------------------------
 data("cbpp",package="lme4")
 cbpp_b1 <- glmmTMB(incidence/size~period+(1|herd),
                    weights=size,family=binomial,
@@ -45,51 +45,51 @@ dd <- data.frame(z=rbeta(1000,shape1=2,shape2=3),
                  a=rnorm(1000),b=rnorm(1000),c=rnorm(1000))
 simex_b1 <- glmmTMB(z~a*b*c,family=beta_family,data=dd)
 
-## ----dharma_sim,eval=FALSE,message=FALSE---------------------------------
+## ----dharma_sim,eval=FALSE,message=FALSE--------------------------------------
 #  owls_nb1_simres <- simulateResiduals(owls_nb1)
 
-## ----dharma_plotfig,fig.width=8,fig.height=4-----------------------------
+## ----dharma_plotfig,fig.width=8,fig.height=4----------------------------------
 plot(owls_nb1_simres)
 
-## ----caranova1-----------------------------------------------------------
+## ----caranova1----------------------------------------------------------------
 if (requireNamespace("car") && getRversion() >= "3.6.0") {
     Anova(owls_nb1)  ## default type II
     Anova(owls_nb1,type="III")
 }
 
-## ----effects1,fig.width=8,fig.height=4-----------------------------------
+## ----effects1,fig.width=8,fig.height=4----------------------------------------
 effects_ok <- (requireNamespace("effects") && getRversion() >= "3.6.0")
 if (effects_ok) {
     (ae <- allEffects(owls_nb1))
     plot(ae)
 }
 
-## ----effects2, fig.width=12,fig.height=12--------------------------------
+## ----effects2, fig.width=12,fig.height=12-------------------------------------
 if (effects_ok) {
   plot(allEffects(simex_b1))
 }
 
-## ----emmeans1------------------------------------------------------------
+## ----emmeans1-----------------------------------------------------------------
 emmeans(owls_nb1, poly ~ FoodTreatment | SexParent)
 
-## ----drop1_eval,cache=TRUE-----------------------------------------------
+## ----drop1_eval,cache=TRUE----------------------------------------------------
 system.time(owls_nb1_d1 <- drop1(owls_nb1,test="Chisq"))
 
-## ----print_drop1---------------------------------------------------------
+## ----print_drop1--------------------------------------------------------------
 print(owls_nb1_d1)
 
-## ----dredge1-------------------------------------------------------------
+## ----dredge1------------------------------------------------------------------
 owls_nb1_dredge
 
-## ----plot_dredge1,fig.width=8,fig.height=8-------------------------------
+## ----plot_dredge1,fig.width=8,fig.height=8------------------------------------
 op <- par(mar=c(2,5,14,3))
 plot(owls_nb1_dredge)
 par(op) ## restore graphics parameters
 
-## ----mumin_MA------------------------------------------------------------
+## ----mumin_MA-----------------------------------------------------------------
 model.avg(owls_nb1_dredge)
 
-## ----glht_def------------------------------------------------------------
+## ----glht_def-----------------------------------------------------------------
 glht_glmmTMB <- function (model, ..., component="cond") {
     glht(model, ...,
          coef. = function(x) fixef(x)[[component]],
@@ -103,11 +103,11 @@ modelparm.glmmTMB <- function (model, coef. = function(x) fixef(x)[[component]],
                         df = df, ...)
 }
 
-## ----glht_use------------------------------------------------------------
+## ----glht_use-----------------------------------------------------------------
 g1 <- glht(cbpp_b1, linfct = mcp(period = "Tukey"))
 summary(g1)
 
-## ----broom_mixed,fig.height=3,fig.width=5--------------------------------
+## ----broom_mixed,fig.height=3,fig.width=5-------------------------------------
 if (requireNamespace("broom.mixed") && requireNamespace("dotwhisker")) {
   (t1 <- broom.mixed::tidy(owls_nb1, conf.int = TRUE))
   if (packageVersion("dotwhisker")>"0.4.1") {
@@ -121,7 +121,7 @@ if (requireNamespace("broom.mixed") && requireNamespace("dotwhisker")) {
   }
 }
 
-## ----xtable_prep---------------------------------------------------------
+## ----xtable_prep--------------------------------------------------------------
 ss <- summary(owls_nb1)
 ## print table; add space, 
 pxt <- function(x,title) {
@@ -131,23 +131,23 @@ pxt <- function(x,title) {
 }
 
 
-## ----xtable_sum,eval=FALSE-----------------------------------------------
+## ----xtable_sum,eval=FALSE----------------------------------------------------
 #  pxt(lme4::formatVC(ss$varcor$cond),"random effects variances")
 #  pxt(coef(ss)$cond,"conditional fixed effects")
 #  pxt(coef(ss)$zi,"conditional zero-inflation effects")
 
-## ----xtable_sum_real,results="asis",echo=FALSE---------------------------
+## ----xtable_sum_real,results="asis",echo=FALSE--------------------------------
 if (requireNamespace("xtable")) {
   pxt(lme4::formatVC(ss$varcor$cond),"random effects variances")
   pxt(coef(ss)$cond,"conditional fixed effects")
   pxt(coef(ss)$zi,"conditional zero-inflation effects")
 }
 
-## ----texreg1,results="asis"----------------------------------------------
+## ----texreg1,results="asis"---------------------------------------------------
 source(system.file("other_methods","extract.R",package="glmmTMB"))
 texreg(owls_nb1,caption="Owls model", label="tab:owls")
 
-## ----huxtable,results="asis"---------------------------------------------
+## ----huxtable,results="asis"--------------------------------------------------
 cc <- c("intercept (mean)"="(Intercept)",
         "food treatment (starvation)"="FoodTreatment1",
         "parental sex (M)"="SexParent1",
@@ -163,18 +163,18 @@ names(h0)[2:3] <- c("estimate","std. err.")
 h1 <- set_cell_properties(h0,row=5,col=1,escape_contents=FALSE)
 cat(to_latex(h1,tabular_only=TRUE))
 
-## ----load_infl-----------------------------------------------------------
+## ----load_infl----------------------------------------------------------------
 source(system.file("other_methods","influence_mixed.R", package="glmmTMB"))
 
-## ----infl, eval=FALSE----------------------------------------------------
+## ----infl, eval=FALSE---------------------------------------------------------
 #  owls_nb1_influence_time <- system.time(
 #    owls_nb1_influence <- influence_mixed(owls_nb1, groups="Nest")
 #  )
 
-## ----plot_infl-----------------------------------------------------------
+## ----plot_infl----------------------------------------------------------------
 car::infIndexPlot(owls_nb1_influence)
 
-## ----plot_infl2,fig.width=8,fig.height=6---------------------------------
+## ----plot_infl2,fig.width=8,fig.height=6--------------------------------------
 inf <- as.data.frame(owls_nb1_influence[["fixed.effects[-Nest]"]])
 inf <- transform(inf,
                  nest=rownames(inf),
@@ -193,7 +193,7 @@ if (require(reshape2)) {
   print(gg_infl)
 }
 
-## ----save_out,echo=FALSE-------------------------------------------------
+## ----save_out,echo=FALSE------------------------------------------------------
 ## store time-consuming stuff
 save("owls_nb1",
      "owls_nb1_simres",

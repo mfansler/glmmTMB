@@ -1,6 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(person("Arni","Magnusson",role="aut",
 	   	   comment=c(ORCID="0000-0003-2769-6741")),
 	    person("Hans","Skaug",role="aut"),
@@ -19,6 +19,8 @@ Authors@R: c(person("Arni","Magnusson",role="aut",
             person("Daniel","Lüdecke", role="ctb",
 	        comment=c(ORCID="0000-0002-8895-3206")),
             person("Russ","Lenth", role="ctb"),
+	    person("Joseph", "O'Brien", role = "ctb",
+		       comment = c(ORCID = "0000-0001-9851-5077")),
             person("Mollie","Brooks",role=c("aut","cre"),
                    email="mollieebrooks@gmail.com",
 		   comment=c(ORCID="0000-0001-6963-8326")))
@@ -45,7 +47,7 @@ BugReports: https://github.com/glmmTMB/glmmTMB/issues
 RoxygenNote: 7.0.2
 NeedsCompilation: yes
 Encoding: UTF-8
-Packaged: 2020-02-03 18:18:40 UTC; molliebrooks
+Packaged: 2020-03-15 15:22:09 UTC; molliebrooks
 Author: Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Hans Skaug [aut],
   Anders Nielsen [aut] (<https://orcid.org/0000-0001-9683-9262>),
@@ -57,7 +59,8 @@ Author: Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Nafis Sadat [ctb] (<https://orcid.org/0000-0001-5715-616X>),
   Daniel Lüdecke [ctb] (<https://orcid.org/0000-0002-8895-3206>),
   Russ Lenth [ctb],
+  Joseph O'Brien [ctb] (<https://orcid.org/0000-0001-9851-5077>),
   Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>)
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Repository: CRAN
-Date/Publication: 2020-02-03 21:10:05 UTC
+Date/Publication: 2020-03-15 22:20:11 UTC

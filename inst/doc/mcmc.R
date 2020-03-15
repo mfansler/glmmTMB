@@ -1,10 +1,10 @@
-## ----knitr_setup, include=FALSE, message=FALSE---------------------------
+## ----knitr_setup, include=FALSE, message=FALSE--------------------------------
 library(knitr)
 opts_chunk$set(echo = TRUE)
 rc <- knitr::read_chunk
 rc(system.file("vignette_data","mcmc.R",package="glmmTMB"))
 
-## ----libs,message=FALSE--------------------------------------------------
+## ----libs,message=FALSE-------------------------------------------------------
 library(glmmTMB)
 library(coda)     ## MCMC utilities
 library(reshape2) ## for melt()
@@ -12,12 +12,12 @@ library(reshape2) ## for melt()
 library(lattice)
 library(ggplot2); theme_set(theme_bw())
 
-## ----fit1----------------------------------------------------------------
+## ----fit1---------------------------------------------------------------------
 data("sleepstudy",package="lme4")
 fm1 <- glmmTMB(Reaction ~ Days + (Days|Subject),
                sleepstudy)
 
-## ----setup---------------------------------------------------------------
+## ----setup--------------------------------------------------------------------
 ## FIXME: is there a better way for user to extract full coefs?
 rawcoef <- with(fm1$obj$env,last.par[-random])
 names(rawcoef) <- make.names(names(rawcoef),unique=TRUE)
@@ -30,7 +30,7 @@ stopifnot(all.equal(c(logpost_fun(rawcoef)),
           tolerance=1e-7))
 V <- vcov(fm1,full=TRUE)
 
-## ----run_MCMC------------------------------------------------------------
+## ----run_MCMC-----------------------------------------------------------------
 ##' @param start starting value
 ##' @param V variance-covariance matrix of MVN candidate distribution
 ##' @param iterations total iterations
@@ -78,36 +78,36 @@ run_MCMC <- function(start,
     return(chain)
 }
 
-## ----do_run_MCMC,eval=FALSE----------------------------------------------
+## ----do_run_MCMC,eval=FALSE---------------------------------------------------
 #  t1 <- system.time(m1 <- run_MCMC(start=rawcoef,
 #                                   V=V, logpost_fun=logpost_fun,
 #                                   seed=1001))
 
-## ----load_MCMC, echo=FALSE-----------------------------------------------
+## ----load_MCMC, echo=FALSE----------------------------------------------------
 L <- load(system.file("vignette_data", "mcmc.rda", package="glmmTMB"))
 
-## ----add_names-----------------------------------------------------------
+## ----add_names----------------------------------------------------------------
 colnames(m1) <- c(names(fixef(fm1)[[1]]),
                   "log(sigma)",
                   c("log(sd_Intercept)","log(sd_Days)","cor"))
 m1[,"cor"] <- sapply(m1[,"cor"],get_cor)
 
-## ----traceplot,fig.width=7-----------------------------------------------
+## ----traceplot,fig.width=7----------------------------------------------------
 xyplot(m1,layout=c(2,3),asp="fill")
 
-## ----effsize-------------------------------------------------------------
+## ----effsize------------------------------------------------------------------
 print(effectiveSize(m1),digits=3)
 
-## ----violins,echo=FALSE--------------------------------------------------
+## ----violins,echo=FALSE-------------------------------------------------------
 ggplot(reshape2::melt(as.matrix(m1[,-1])),aes(x=Var2,y=value))+
          geom_violin(fill="gray")+coord_flip()+labs(x="")
 
-## ----do_tmbstan,eval=FALSE-----------------------------------------------
+## ----do_tmbstan,eval=FALSE----------------------------------------------------
 #  ## install.packages("tmbstan")
 #  library(tmbstan)
 #  t2 <- system.time(m2 <- tmbstan(fm1$obj))
 
-## ----show_traceplot,echo=FALSE,fig.width=8,fig.height=5------------------
+## ----show_traceplot,echo=FALSE,fig.width=8,fig.height=5-----------------------
 library(png)
 library(grid)
 img <- readPNG(system.file("vignette_data","tmbstan_traceplot.png",package="glmmTMB"))

@@ -1,44 +1,44 @@
 params <-
 list(EVAL = FALSE)
 
-## ----load_lib,echo=FALSE-------------------------------------------------
+## ----load_lib,echo=FALSE------------------------------------------------------
 library(glmmTMB)
 knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALSE)
 
-## ----non-pos-def,cache=TRUE, warning=FALSE-------------------------------
+## ----non-pos-def,cache=TRUE, warning=FALSE------------------------------------
 #  zinbm0 = glmmTMB(count~spp + (1|site), zi=~spp, Salamanders, family=nbinom2)
 
-## ----fixef_zinbm0--------------------------------------------------------
+## ----fixef_zinbm0-------------------------------------------------------------
 #  fixef(zinbm0)
 
-## ----f_zi2---------------------------------------------------------------
+## ----f_zi2--------------------------------------------------------------------
 #  ff <- fixef(zinbm0)$zi
 #  round(plogis(c(sppGP=unname(ff[1]),ff[-1]+ff[1])),3)
 
-## ----salfit2,cache=TRUE--------------------------------------------------
+## ----salfit2,cache=TRUE-------------------------------------------------------
 #  Salamanders <- transform(Salamanders, GP=as.numeric(spp=="GP"))
 #  zinbm0_A = update(zinbm0, ziformula=~GP)
 
-## ----salfit2_coef,cache=TRUE---------------------------------------------
+## ----salfit2_coef,cache=TRUE--------------------------------------------------
 #  fixef(zinbm0_A)[["zi"]]
 
-## ----salfit3,cache=TRUE--------------------------------------------------
+## ----salfit3,cache=TRUE-------------------------------------------------------
 #  zinbm0_B = update(zinbm0, ziformula=~(1|spp))
 #  fixef(zinbm0_B)[["zi"]]
 #  VarCorr(zinbm0_B)
 
-## ----zinbm1,cache=TRUE---------------------------------------------------
+## ----zinbm1,cache=TRUE--------------------------------------------------------
 #  zinbm1 = glmmTMB(count~spp + (1|site), zi=~mined, Salamanders, family=nbinom2)
 #  fixef(zinbm1)[["zi"]]
 
-## ----zinbm1_confint,cache=TRUE-------------------------------------------
+## ----zinbm1_confint,cache=TRUE------------------------------------------------
 #  ## at present we need to specify the parameter by number; for
 #  ##  extreme cases need to specify the parameter range
 #  ## (not sure why the upper bound needs to be so high ... ?)
 #  cc = confint(zinbm1,method="uniroot",parm=9, parm.range=c(-20,20))
 #  print(cc)
 
-## ----fatfiberglmm--------------------------------------------------------
+## ----fatfiberglmm-------------------------------------------------------------
 #  ## data taken from gamlss.data:plasma, originally
 #  ## http://biostat.mc.vanderbilt.edu/wiki/pub/Main/DataSets/plasma.html
 #  load(system.file("vignette_data","plasma.rda", package="glmmTMB"))
@@ -57,13 +57,13 @@ knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALS
 #                  glmmTMB_sc=sqrt(diag(vcov(m4.3)$cond))*ss)
 #  print(s_vals,digits=3)
 
-## ----load_ss_ex----------------------------------------------------------
+## ----load_ss_ex---------------------------------------------------------------
 #  load(system.file("vignette_data","troubleshooting.rda",package="glmmTMB"))
 
-## ----ss_ex_mod1----------------------------------------------------------
+## ----ss_ex_mod1---------------------------------------------------------------
 #  summary(mod1)
 
-## ----diagnose_vcov-------------------------------------------------------
+## ----diagnose_vcov------------------------------------------------------------
 #  diagnose_vcov <- function(model, tol=1e-5, digits=2, analyze_hessian=FALSE) {
 #      vv <- vcov(model, full=TRUE)
 #      nn <- rownames(vv)
@@ -95,34 +95,34 @@ knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALS
 #      return(ret)
 #  }
 
-## ----diag_1--------------------------------------------------------------
+## ----diag_1-------------------------------------------------------------------
 #  (d1 <- diagnose_vcov(mod1))
 
-## ----ss_mod2_up, eval=FALSE----------------------------------------------
+## ----ss_mod2_up, eval=FALSE---------------------------------------------------
 #  mod2 <- update(mod1, ziformula=~0)
 
-## ----ss_mod2-------------------------------------------------------------
+## ----ss_mod2------------------------------------------------------------------
 #  summary(mod2)
 
-## ----ss_diag2------------------------------------------------------------
+## ----ss_diag2-----------------------------------------------------------------
 #  diagnose_vcov(mod2)
 
-## ----mod3_up, eval=FALSE-------------------------------------------------
+## ----mod3_up, eval=FALSE------------------------------------------------------
 #  mod3 <- update(mod2, family=poisson)
 
-## ----ss_mod3-------------------------------------------------------------
+## ----ss_mod3------------------------------------------------------------------
 #  summary(mod3)
 
-## ----ss_diag3------------------------------------------------------------
+## ----ss_diag3-----------------------------------------------------------------
 #  diagnose_vcov(mod3)
 
-## ----checkhess-----------------------------------------------------------
+## ----checkhess----------------------------------------------------------------
 #  mod3$sdr$pdHess					
 
-## ----genpois_NaN,cache=TRUE----------------------------------------------
+## ----genpois_NaN,cache=TRUE---------------------------------------------------
 #  m1 = glmmTMB(count~spp + mined + (1|site), zi=~spp + mined, Salamanders, family=genpois)
 
-## ----NA gradient, error=TRUE, warning=FALSE------------------------------
+## ----NA gradient, error=TRUE, warning=FALSE-----------------------------------
 #  dat1 = expand.grid(y=-1:1, rep=1:10)
 #  m1 = glmmTMB(y~1, dat1, family=nbinom2)
 
