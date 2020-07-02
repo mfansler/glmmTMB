@@ -44,7 +44,7 @@ x <- mvrnorm(mu = rep(0,n),
 y <- x + rnorm(n)                                   ## Add measurement noise
 
 ## ----simtimes-----------------------------------------------------------------
-#  times <- factor(1:n)
+#  times <- factor(1:n, levels=1:n)
 #  levels(times)
 
 ## ----simgroup-----------------------------------------------------------------

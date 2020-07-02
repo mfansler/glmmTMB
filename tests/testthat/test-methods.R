@@ -49,6 +49,23 @@ test_that("Fitted and residuals", {
     expect_equal(residuals(tmbm4,type="pearson"),
                  residuals(tmbm6,type="pearson"),tolerance=1e-6)
 
+    ## predict handles na.exclude correctly
+    ## GH 568
+    b <- rnorm(332)
+    mu <- exp(1.5 + .26*b)
+    y <- sapply(mu, function(mu){rpois(1, lambda = mu)})
+    napos <- 51
+    b[napos] <- NA
+    y.na <- y
+    y.na[napos] <- NA 
+    mod.ex <- glmmTMB(y ~ b, family = "poisson", na.action = "na.exclude")
+    ## Get predictions/resids
+    pr.ex <- predict(mod.ex, type = "response") # SEEMS to work fine
+    expect_equal(which(is.na(pr.ex)),napos)
+    rs.ex <- residuals(mod.ex, type = "response")
+    expect_equal(unname(which(is.na(rs.ex))),napos)
+    pr.rs.ex <- pr.ex + rs.ex
+    expect_equal(unname(pr.rs.ex), y.na)
 })
 
 test_that("Predict", {
@@ -339,18 +356,18 @@ test_that("various binomial response types work", {
         prop <- y[,1]/w
     })
     s1 <- simulate(f1b, 1, seed=1)
-    f1 <- fixef(lme4::refit(f1b,s1[[1]]))
+    f1 <- fixef(refit(f1b,s1[[1]]))
     s3 <- simulate(f3b, 1, seed=1)
-    f3 <- fixef(lme4::refit(f3b,s3[[1]]))
+    f3 <- fixef(refit(f3b,s3[[1]]))
     expect_equal(f1,f3)
-    expect_error(lme4::refit(f4b,s3[[1]]),
+    expect_error(refit(f4b,s3[[1]]),
                   "can't find response in data")
 })
 
 test_that("binomial response types work with data in external scope", {
     s1 <- simulate(f1b, 1, seed=1)
-    f1 <- fixef(lme4::refit(f1b,s1[[1]]))
+    f1 <- fixef(refit(f1b,s1[[1]]))
     s3 <- simulate(f3b, 1, seed=1)
-    f3 <- fixef(lme4::refit(f3b,s3[[1]]))
+    f3 <- fixef(refit(f3b,s3[[1]]))
     expect_equal(f1,f3)
 })

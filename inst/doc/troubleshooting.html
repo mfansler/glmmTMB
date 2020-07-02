@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 
-<meta name="date" content="2020-03-15" />
+<meta name="date" content="2020-07-01" />
 
 <title>Troubleshooting with glmmTMB</title>
 
@@ -93,7 +93,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Troubleshooting with glmmTMB</h1>
-<h4 class="date">2020-03-15</h4>
+<h4 class="date">2020-07-01</h4>
 
 
 
@@ -279,6 +279,61 @@ m1 =<span class="st"> </span><span class="kw">glmmTMB</span>(y<span class="op">~
 <p>Error in optimHess(par.fixed, obj<span class="math inline">\(fn, obj\)</span>gr): gradient in optim evaluated to length x</p>
 </blockquote>
 <p>Try rescaling predictor variables. Try a simpler model and build up. (If you have a simple reproducible example of these errors, please post them to the issues list.)</p>
+<div id="inspecting-hessian-experimental" class="section level3">
+<h3>inspecting Hessian (experimental!)</h3>
+<p>Can we directly inspect the Hessian to find where the problems are?</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">##' @param fit a \code{glmmTMB} fit
+##' @param h Hessian (if not provided, will be computed from the Jacobian of the gradient
+##' @param eval.eps numeric tolerance for 'bad' eigenvalues
+##' @param evec.eps numeric tolerance for 'bad' eigenvector elements
+diagnose_hessian &lt;-<span class="st"> </span><span class="cf">function</span>(fit,<span class="dt">h=</span><span class="ot">NULL</span>, <span class="dt">eval.eps=</span><span class="fl">1e-5</span>,<span class="dt">evec.eps=</span><span class="fl">1e-2</span>) {
+    ## pull out the TMB object from the fit
+    obj &lt;-<span class="st"> </span>fit<span class="op">$</span>obj
+    ee &lt;-<span class="st"> </span><span class="kw">environment</span>(obj<span class="op">$</span>fn)
+    ## extract parameters
+    pp &lt;-<span class="st"> </span>ee<span class="op">$</span>last.par[<span class="op">-</span>ee<span class="op">$</span>random]
+    ## easiest way to get names corresponding to all of the parameters
+    nn &lt;-<span class="st"> </span><span class="kw">tryCatch</span>(<span class="kw">colnames</span>(<span class="kw">vcov</span>(fit,<span class="dt">full=</span><span class="ot">TRUE</span>)),
+                   ## fall-back position
+                   <span class="dt">error =</span> <span class="cf">function</span>(e) <span class="kw">make.unique</span>(<span class="kw">names</span>(pp)))
+    ## fit$sdr$pdHess
+    <span class="cf">if</span> (<span class="st">&quot;sdr&quot;</span> <span class="op">%in%</span><span class="st"> </span><span class="kw">names</span>(fit)) {
+        <span class="kw">cat</span>(<span class="st">&quot;bad params according to sdreport:&quot;</span>,
+            <span class="kw">paste</span>(nn[<span class="op">!</span><span class="kw">is.finite</span>(<span class="kw">suppressWarnings</span>(<span class="kw">sqrt</span>(<span class="kw">diag</span>(fit<span class="op">$</span>sdr<span class="op">$</span>cov.fixed))))],
+                  <span class="dt">collapse=</span><span class="st">&quot;, &quot;</span>),<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)
+    }
+    ## two ways to compute the Hessian
+    ## (1) directly from the objective function, via finite difference+Richardson extrapolation
+    ## h1 &lt;- hessian(obj$fn, pp)
+    ## (2) use the gradient and compute its Jacobian (faster and probably more stable)
+    <span class="cf">if</span> (<span class="kw">is.null</span>(h)) {
+        <span class="cf">if</span> (<span class="op">!</span><span class="kw">require</span>(numDeriv)) <span class="kw">stop</span>(<span class="st">&quot;need numDeriv package installed&quot;</span>) 
+        h &lt;-<span class="st"> </span><span class="kw">jacobian</span>(obj<span class="op">$</span>gr, pp)
+    }
+    ## double-check we get the same answer (approximately)
+    ## all.equal(h1,h,tolerance=1e-5)
+    ## now investigate the Hessian
+    eigs &lt;-<span class="st"> </span><span class="kw">eigen</span>(h)
+    ## non-positive definite means some of the eigenvectors are &lt;= 0
+    bad &lt;-<span class="st"> </span><span class="kw">which</span>(eigs<span class="op">$</span>values<span class="op">/</span><span class="kw">max</span>(eigs<span class="op">$</span>values)<span class="op">&lt;=</span>eval.eps)
+    <span class="cf">if</span> (<span class="kw">length</span>(bad)<span class="op">==</span><span class="dv">0</span>) {
+        <span class="kw">cat</span>(<span class="st">&quot;Hessian seems OK</span><span class="ch">\n</span><span class="st">&quot;</span>)
+        <span class="kw">return</span>(<span class="kw">invisible</span>(h))
+    }
+    <span class="kw">cat</span>(<span class="kw">sprintf</span>(<span class="st">&quot;max eigenvalue = %1.3g&quot;</span>,eigs<span class="op">$</span>values[<span class="dv">1</span>]),<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)
+    <span class="cf">for</span> (b <span class="cf">in</span> bad) {  ## there could be more than one 'bad' direction/eigenvector ..
+        <span class="kw">cat</span>(<span class="kw">sprintf</span>(<span class="st">&quot;Hessian eigenvalue %d = %1.3g (relative val = %1.3g)&quot;</span>,
+                    b,eigs<span class="op">$</span>values[b],eigs<span class="op">$</span>values[b]<span class="op">/</span>eigs<span class="op">$</span>values[<span class="dv">1</span>]),<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)
+        bad_vec &lt;-<span class="st"> </span>eigs<span class="op">$</span>vectors[,b]
+        bad_elements &lt;-<span class="st"> </span><span class="kw">which</span>(<span class="kw">abs</span>(bad_vec)<span class="op">&gt;</span>evec.eps)
+        <span class="kw">cat</span>(<span class="st">&quot;   bad elements:&quot;</span>,nn[bad_elements],<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)
+    }
+    <span class="kw">cat</span>(<span class="st">&quot;SDs computed from sqrt(diag(solve(H))):&quot;</span>,
+        <span class="kw">paste</span>(<span class="kw">suppressWarnings</span>(<span class="kw">sqrt</span>(<span class="kw">diag</span>(<span class="kw">solve</span>(h)))), <span class="dt">collapse=</span><span class="st">&quot;, &quot;</span>),<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)
+    <span class="kw">return</span>(<span class="kw">invisible</span>(h))
+}
+<span class="kw">diagnose_hessian</span>(zinbm0)</code></pre></div>
+</div>
 </div>
 </div>
 

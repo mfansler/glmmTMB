@@ -24,10 +24,14 @@
 ##' @export fixef
 ##' @export
 fixef.glmmTMB <- function(object, ...) {
+  getXnm <- function(suffix) {
+      nm <- paste0("X",suffix)
+      return(colnames(getME(object, nm)))
+  }
   pl <- object$obj$env$parList(object$fit$par, object$fit$parfull)
-  structure(list(cond = setNames(pl$beta,   colnames(getME(object, "X"))),
-                 zi   = setNames(pl$betazi, colnames(getME(object, "Xzi"))),
-                 disp = setNames(pl$betad,  colnames(getME(object, "Xd")))),
+  structure(list(cond = setNames(pl$beta,   getXnm("")),
+                 zi   = setNames(pl$betazi, getXnm("zi")),
+                 disp = setNames(pl$betad,  getXnm("d"))),
             class = "fixef.glmmTMB")
 }
 
@@ -84,8 +88,7 @@ print.fixef.glmmTMB <- function(x, digits = max(3, getOption("digits") - 3), ...
 ##' @param object a \code{glmmTMB} model.
 ##' @param condVar whether to include conditional variances in result.
 ##' @param \dots some methods for this generic function require additional
-##'   arguments.
-##'
+##'   arguments (they are unused here and will trigger an error)
 ##' @return
 ##' \itemize{
 ##' \item For \code{ranef}, an object of class \code{ranef.glmmTMB} with two components:
@@ -144,6 +147,7 @@ print.fixef.glmmTMB <- function(x, digits = max(3, getOption("digits") - 3), ...
 ##' @export ranef
 ##' @export
 ranef.glmmTMB <- function(object, condVar=TRUE, ...) {
+  check_dots(...)
   ## The arrange() function converts a vector of random effects to a list of
   ## data frames, in the same way as lme4 does.
   ## FIXME: add condVar, make sure format matches lme4
@@ -261,12 +265,13 @@ getME.glmmTMB <- function(object,
   oo.env <- object$obj$env
   ### Start of the switch
   allpars <- oo.env$parList(object$fit$par, object$fit$parfull)
+  isSparse <- function(component) { if (is.null(om <- object$modelInfo$sparseX)) FALSE else om[[component]] }
   switch(name,
-         "X"     = oo.env$data$X,
-         "Xzi"   = oo.env$data$Xzi,
+         "X"     = if (!isSparse("cond")) oo.env$data$X else oo.env$data$XS,
+         "Xzi"   = if (!isSparse("zi")) oo.env$data$Xzi else oo.env$data$XziS,
          "Z"     = oo.env$data$Z,
          "Zzi"   = oo.env$data$Zzi,
-         "Xd"    = oo.env$data$Xd,
+         "Xd"    = if (!isSparse("disp")) oo.env$data$Xd else oo.env$data$XdS,
          "theta" = allpars$theta ,
          "beta"  = unlist(allpars[c("beta","betazi","betad")]),
          "..foo.." = # placeholder!
@@ -604,7 +609,8 @@ residuals.glmmTMB <- function(object, type=c("response", "pearson"), ...) {
     if(type=="pearson" &((object$call$ziformula != ~0)|(object$call$dispformula != ~1))) {
         stop("pearson residuals are not implemented for models with zero-inflation or variable dispersion")
     }
-    mr <- model.response(object$frame)
+    na.act <- attr(object$frame,"na.action")
+    mr <- napredict(na.act,model.response(object$frame))
     wts <- model.weights(model.frame(object))
     ## binomial model specified as (success,failure)
     if (!is.null(dim(mr))) {
@@ -1154,10 +1160,8 @@ model.matrix.glmmTMB <- function (object, component="cond", part="fixed", ...)
 ##' @export
 ##' @rdname ranef.glmmTMB
 ##' @param x a \code{ranef.glmmTMB} object (i.e., the result of running \code{ranef} on a fitted \code{glmmTMB} model)
-##' @param stringsAsFactors see \code{\link{data.frame}}
-as.data.frame.ranef.glmmTMB <- function(x,
-                ...,
-                stringsAsFactors = default.stringsAsFactors()) {
+as.data.frame.ranef.glmmTMB <- function(x, ...) {
+    check_dots(...)
     tmpf <- function(x) do.call(rbind,lapply(names(x),asDf0,x=x,id=TRUE))
     x0 <- lapply(x,tmpf)
     x1 <- Map(function(x,n) {
@@ -1181,14 +1185,16 @@ as.data.frame.ranef.glmmTMB <- function(x,
 #' @importFrom lme4 isLMM
 #' @importFrom lme4 refit
 ## don't export refit ...
-#' @description see \code{\link[lme4]{refit}} and \code{\link[lme4]{isLMM}} for details
+#' @description see \code{\link[lme4]{refit}} and \code{\link[lme4:isREML]{isLMM}} for details
 isLMM.glmmTMB <- function(object) {
    fam <- family(object)
    fam$family=="gaussian" && fam$link=="identity"
 }
 
 #' @export
+lme4::refit
 
+#' @export
 #' @rdname bootmer_methods
 #' @importFrom stats formula
 #' @param ... additional arguments (for generic consistency; ignored)
@@ -1199,6 +1205,10 @@ isLMM.glmmTMB <- function(object) {
 #'                   ziformula=~mined,
 #'                   data=Salamanders,
 #'                   family=nbinom1)
+#'    ## single parametric bootstrap step: refit with data simulated from original model
+#'    fm1R <- refit(fm1, simulate(fm1)[[1]])
+#'    ## the bootMer function from lme4 provides a wrapper for doing multiple refits
+#'    ##   with a specified summary function
 #'    b1 <- lme4::bootMer(fm1, FUN=function(x) fixef(x)$zi, nsim=20, .progress="txt")
 #'    if (requireNamespace("boot")) {
 #'       boot.ci(b1,type="perc")
@@ -1325,7 +1335,7 @@ coef.glmmTMB <- function(object,
 ##' the total number of trials when binomial responses are specified
 ##' as a two-column matrix.
 ##' \item Since \code{glmmTMB} does not fit models via iteratively
-##' weighted least squares, \code{working weights} (see \code{\link[stats]{weights.glm}}) are unavailable.
+##' weighted least squares, \code{working weights} (see \code{\link[stats:glm]{weights.glm}}) are unavailable.
 ##' }
 ##' @importFrom stats model.frame
 ##' @importFrom stats weights
@@ -1340,4 +1350,34 @@ weights.glmmTMB <- function(object, type="prior", ...) {
              paste(shQuote(names(list(...))),collapse=","))
     }
     stats::model.frame(object)[["(weights)"]]
+}
+
+# would like to export this only as a method, but not sure how ...
+# https://stackoverflow.com/questions/29079179/does-using-package-generics-require-the-package-to-be-in-depends-or-imports
+
+# extract model parameters
+#
+# This is a utility function for multcomp::glht
+# 
+## @param model fitted glmmTMB model
+## @param coef. function for retrieving coefficients
+## @param vcov. function for retrieving covariance matrix
+## @param df degrees of freedom
+## @param component which model component to test (cond, zi, or disp)
+
+##' @rawNamespace if(getRversion() >= "3.6.0") {
+##'      S3method(multcomp::modelparm, glmmTMB)
+##' } else {
+##'    export(modelparm.glmmTMB)
+##' }
+modelparm.glmmTMB <- function (model, coef. = function(x) fixef(x)[[component]],
+                               vcov. = function(x) vcov(x)[[component]],
+                               df = NULL, component="cond", ...) {
+    beta <- coef.(model)
+    sigma <- vcov.(model)
+    estimable <- unname(!is.na(beta))
+    if (is.null(df)) df <- 0
+    RET <- list(coef = beta, vcov = sigma, df = df, estimable = estimable)
+    class(RET) <- "modelparm"
+    return(RET)
 }

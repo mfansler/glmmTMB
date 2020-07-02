@@ -21,7 +21,8 @@ library(dotwhisker)
 library(ggplot2); theme_set(theme_bw())
 library(texreg)
 library(xtable)
-library(huxtable)
+## temporarily disabled: causes problems with <<caranova1>> chunk?
+## library(huxtable)
 ## retrieve slow stuff
 L <- load(system.file("vignette_data","model_evaluation.rda",
                       package="glmmTMB"))
@@ -89,20 +90,6 @@ par(op) ## restore graphics parameters
 ## ----mumin_MA-----------------------------------------------------------------
 model.avg(owls_nb1_dredge)
 
-## ----glht_def-----------------------------------------------------------------
-glht_glmmTMB <- function (model, ..., component="cond") {
-    glht(model, ...,
-         coef. = function(x) fixef(x)[[component]],
-         vcov. = function(x) vcov(x)[[component]],
-         df = NULL)
-}
-modelparm.glmmTMB <- function (model, coef. = function(x) fixef(x)[[component]],
-                               vcov. = function(x) vcov(x)[[component]],
-                               df = NULL, component="cond", ...) {
-    multcomp:::modelparm.default(model, coef. = coef., vcov. = vcov.,
-                        df = df, ...)
-}
-
 ## ----glht_use-----------------------------------------------------------------
 g1 <- glht(cbpp_b1, linfct = mcp(period = "Tukey"))
 summary(g1)
@@ -111,14 +98,12 @@ summary(g1)
 if (requireNamespace("broom.mixed") && requireNamespace("dotwhisker")) {
   (t1 <- broom.mixed::tidy(owls_nb1, conf.int = TRUE))
   if (packageVersion("dotwhisker")>"0.4.1") {
-    ## to get this version (which fixes various dotwhisker problems)
-    ## use devtools::install_github("bbolker/broom.mixed") or
-    ## wait for pull request acceptance/submission to CRAN/etc.
-    dwplot(owls_nb1)+geom_vline(xintercept=0,lty=2)
+    dw <- dwplot(owls_nb1)
   } else {
     owls_nb1$coefficients <- TRUE  ## hack!
-    dwplot(owls_nb1,by_2sd=FALSE)+geom_vline(xintercept=0,lty=2)
+    dw <- dwplot(owls_nb1,by_2sd=FALSE)
   }
+  print(dw+geom_vline(xintercept=0,lty=2))
 }
 
 ## ----xtable_prep--------------------------------------------------------------
@@ -147,21 +132,22 @@ if (requireNamespace("xtable")) {
 source(system.file("other_methods","extract.R",package="glmmTMB"))
 texreg(owls_nb1,caption="Owls model", label="tab:owls")
 
-## ----huxtable,results="asis"--------------------------------------------------
-cc <- c("intercept (mean)"="(Intercept)",
-        "food treatment (starvation)"="FoodTreatment1",
-        "parental sex (M)"="SexParent1",
-        "food $\\times$ sex"="FoodTreatment1:SexParent1")
-h0 <- huxreg(" "=owls_nb1, # give model blank name so we don't get '(1)'
-             tidy_args=list(effects="fixed"),
-             coefs=cc,
-             error_pos="right",
-             statistics="nobs" # don't include logLik and AIC
-             )
-names(h0)[2:3] <- c("estimate","std. err.")
-## allow use of math notation in name
-h1 <- set_cell_properties(h0,row=5,col=1,escape_contents=FALSE)
-cat(to_latex(h1,tabular_only=TRUE))
+## ----huxtable,results="asis",eval=FALSE---------------------------------------
+#  library("huxtable")
+#  cc <- c("intercept (mean)"="(Intercept)",
+#          "food treatment (starvation)"="FoodTreatment1",
+#          "parental sex (M)"="SexParent1",
+#          "food $\\times$ sex"="FoodTreatment1:SexParent1")
+#  h0 <- huxreg(" "=owls_nb1, # give model blank name so we don't get '(1)'
+#               tidy_args=list(effects="fixed"),
+#               coefs=cc,
+#               error_pos="right",
+#               statistics="nobs" # don't include logLik and AIC
+#               )
+#  names(h0)[2:3] <- c("estimate","std. err.")
+#  ## allow use of math notation in name
+#  h1 <- set_cell_properties(h0,row=5,col=1,escape_contents=FALSE)
+#  cat(to_latex(h1,tabular_only=TRUE))
 
 ## ----load_infl----------------------------------------------------------------
 source(system.file("other_methods","influence_mixed.R", package="glmmTMB"))
@@ -174,7 +160,7 @@ source(system.file("other_methods","influence_mixed.R", package="glmmTMB"))
 ## ----plot_infl----------------------------------------------------------------
 car::infIndexPlot(owls_nb1_influence)
 
-## ----plot_infl2,fig.width=8,fig.height=6--------------------------------------
+## ----plot_infl2,fig.width=10,fig.height=6,out.width="\\textwidth"-------------
 inf <- as.data.frame(owls_nb1_influence[["fixed.effects[-Nest]"]])
 inf <- transform(inf,
                  nest=rownames(inf),
@@ -185,8 +171,9 @@ if (require(reshape2)) {
   gg_infl <- (ggplot(inf_long,aes(ord,value))
     + geom_point()
     + facet_wrap(~variable, scale="free_y")
-    + scale_x_reverse(expand=expand_scale(mult=0.15))
-    + scale_y_continuous(expand=expand_scale(mult=0.15))
+    ## n.b. may need expand_scale() in older ggplot versions ?
+    + scale_x_reverse(expand=expansion(mult=0.15))
+    + scale_y_continuous(expand=expansion(mult=0.15))
     + geom_text(data=subset(inf_long,ord>24),
                 aes(label=nest),vjust=-1.05)
   )

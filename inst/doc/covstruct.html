@@ -12,7 +12,7 @@
 
 <meta name="author" content="Kasper Kristensen" />
 
-<meta name="date" content="2020-03-15" />
+<meta name="date" content="2020-07-01" />
 
 <title>Covariance structures with glmmTMB</title>
 
@@ -95,7 +95,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Covariance structures with glmmTMB</h1>
 <h4 class="author">Kasper Kristensen</h4>
-<h4 class="date">2020-03-15</h4>
+<h4 class="date">2020-07-01</h4>
 
 
 
@@ -138,10 +138,10 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <td>AR(1)</td>
 <td><code>ar1</code></td>
 <td><span class="math inline">\(2\)</span></td>
-<td></td>
+<td>Unit spaced levels</td>
 </tr>
 <tr class="even">
-<td>Ornstein–Uhlenbeck</td>
+<td>Ornstein-Uhlenbeck</td>
 <td><code>ou</code></td>
 <td><span class="math inline">\(2\)</span></td>
 <td>Coordinates</td>
@@ -217,8 +217,8 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 x &lt;-<span class="st"> </span><span class="kw">mvrnorm</span>(<span class="dt">mu =</span> <span class="kw">rep</span>(<span class="dv">0</span>,n),
              <span class="dt">Sigma =</span> .<span class="dv">7</span> <span class="op">^</span><span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">dist</span>(<span class="dv">1</span><span class="op">:</span>n)) )    ## Simulate the process using the MASS package
 y &lt;-<span class="st"> </span>x <span class="op">+</span><span class="st"> </span><span class="kw">rnorm</span>(n)                                   ## Add measurement noise</code></pre></div>
-<p>In order to fit the model with <code>glmmTMB</code> we must first specify a time variable as a <em>factor</em>. The factor <em>levels</em> correspond to unit spaced time points.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">times &lt;-<span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span><span class="op">:</span>n)
+<p>In order to fit the model with <code>glmmTMB</code> we must first specify a time variable as a <em>factor</em>. The factor <em>levels</em> correspond to unit spaced time points. It is a common mistake to forget some factor levels due to missing data or to order the levels incorrectly. We therefore recommend to construct factors with explicit levels, using the <code>levels</code> argument to the <code>factor</code> function:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">times &lt;-<span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span><span class="op">:</span>n, <span class="dt">levels=</span><span class="dv">1</span><span class="op">:</span>n)
 <span class="kw">levels</span>(times)</code></pre></div>
 <p>We also need a grouping variable. In the current case there is only one time-series so the grouping is:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">group &lt;-<span class="st"> </span><span class="kw">factor</span>(<span class="kw">rep</span>(<span class="dv">1</span>,n))</code></pre></div>
@@ -262,7 +262,7 @@ y &lt;-<span class="st"> </span>x <span class="op">+</span><span class="st"> </s
 fit.us<span class="op">$</span>sdr<span class="op">$</span>pdHess ## Converged ?</code></pre></div>
 <p>The estimated variance and correlation parameters are:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">VarCorr</span>(fit.us)</code></pre></div>
-<p>{#1_{{#2}}} The estimated correlation is approximately constant along diagonals (apparent Toeplitz structure) and we note that the first off-diagonal is now ca. half the true value (0.7) because the dispersion is effectively included in the estimated covariance matrix (i.e. <span class="math inline">\(\rho' = \rho {2}{\sigma^2}{AR}/({2}{\sigma^2}{AR} + {2}{sigma^2}{meas})\)</span>).</p>
+<p>The estimated correlation is approximately constant along diagonals (apparent Toeplitz structure) and we note that the first off-diagonal is now ca. half the true value (0.7) because the dispersion is effectively included in the estimated covariance matrix (i.e. <span class="math inline">\(\rho' = \rho {\sigma^2_{{\text {AR}}}}/({\sigma^2_{{\text {AR}}}} + {\sigma^2_{{\text {meas}}}})\)</span>).</p>
 </div>
 <div id="the-toeplitz-structure" class="section level2">
 <h2>The Toeplitz structure</h2>
@@ -274,7 +274,7 @@ fit.us<span class="op">$</span>sdr<span class="op">$</span>pdHess ## Converged ?
 fit.toep<span class="op">$</span>sdr<span class="op">$</span>pdHess ## Converged ?</code></pre></div>
 <p>The estimated variance and correlation parameters are:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">(vc.toep &lt;-<span class="st"> </span><span class="kw">VarCorr</span>(fit.toep))</code></pre></div>
-<p>The diagonal elements are all approximately equal to the true total variance (<span class="math inline">\({2}{\sigma^2}{AR} + {2}{sigma^2}{meas}\)</span>=2), and the off-diagonal elements are approximately equal to the expected value of 0.7/2=0.35.</p>
+<p>The diagonal elements are all approximately equal to the true total variance (<span class="math inline">\({\sigma^2_{{\text {AR}}}} + {\sigma^2_{{\text {meas}}}}\)</span>=2), and the off-diagonal elements are approximately equal to the expected value of 0.7/2=0.35.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">vc1 &lt;-<span class="st"> </span>vc.toep<span class="op">$</span>cond[[<span class="dv">1</span>]] ## first term of var-cov for RE of conditional model
 <span class="kw">summary</span>(<span class="kw">diag</span>(vc1))
 <span class="kw">summary</span>(vc1[<span class="kw">row</span>(vc1)<span class="op">!=</span><span class="kw">col</span>(vc1)])</code></pre></div>

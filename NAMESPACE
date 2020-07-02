@@ -43,6 +43,7 @@ export(betabinomial)
 export(compois)
 export(dropHead)
 export(extractForm)
+export(fitTMB)
 export(fixef)
 export(genpois)
 export(getCapabilities)
@@ -59,6 +60,7 @@ export(noSpecials)
 export(numFactor)
 export(parseNumLevels)
 export(ranef)
+export(refit)
 export(sigma)
 export(splitForm)
 export(truncated_compois)
@@ -72,6 +74,11 @@ if(getRversion() >= "3.6.0") {
      S3method(car::Anova, glmmTMB)
 } else {
   export(Anova.glmmTMB)
+}
+if(getRversion() >= "3.6.0") {
+     S3method(multcomp::modelparm, glmmTMB)
+} else {
+   export(modelparm.glmmTMB)
 }
 if(getRversion() >= "3.6.0") {
   S3method(effects::Effect, glmmTMB)

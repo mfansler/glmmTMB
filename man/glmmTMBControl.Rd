@@ -10,7 +10,8 @@ glmmTMBControl(
   optimizer = nlminb,
   profile = FALSE,
   collect = FALSE,
-  parallel = NULL
+  parallel = NULL,
+  eigval_check = TRUE
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ recognizing duplicated observations.}
 
 \item{parallel}{Numeric; Setting number of OpenMP threads to evaluate
 the negative log-likelihood in parallel}
+
+\item{eigval_check}{Check eigenvalues of variance-covariance matrix? (This test may be very slow for models with large numbers of fixed-effect parameters.)}
 }
 \description{
 Control parameters for glmmTMB optimization
@@ -59,7 +62,9 @@ The \code{optimizer} argument can be any optimization (minimizing) function, pro
 \itemize{
 \item the first three arguments, in order, are the starting values, objective function, and gradient function;
 \item it also takes a \code{control} argument;
-\item it returns a list with elements (at least) \code{convergence} (0 if convergence is successful) and \code{message}
+\item it returns a list with elements (at least) \code{par}, \code{objective}, \code{convergence} (0 if convergence is successful) and \code{message}
+(the code internally handles output from \code{optim()}, by renaming the \code{value} component to \code{objective})
+
 }
 }
 \examples{
