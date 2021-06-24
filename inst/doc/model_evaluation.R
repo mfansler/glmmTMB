@@ -1,6 +1,7 @@
 ## ----setopts,echo=FALSE,message=FALSE-----------------------------------------
 library("knitr")
 opts_chunk$set(fig.width=5,fig.height=5,
+               error=FALSE,
                out.width="0.8\\textwidth",echo=TRUE)
 ## https://tex.stackexchange.com/questions/148188/knitr-xcolor-incompatible-color-definition/254482
 knit_hooks$set(document = function(x) {sub('\\usepackage[]{color}', '\\usepackage{xcolor}', x, fixed = TRUE)})
@@ -27,13 +28,13 @@ library(xtable)
 L <- load(system.file("vignette_data","model_evaluation.rda",
                       package="glmmTMB"))
 
-## ----examples,eval=FALSE------------------------------------------------------
-#  owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
-#                          (1|Nest)+offset(log(BroodSize)),
-#                      contrasts=list(FoodTreatment="contr.sum",
-#                                     SexParent="contr.sum"),
-#                      family = nbinom1,
-#                      zi = ~1, data=Owls)
+## ----examples,eval=TRUE-------------------------------------------------------
+owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
+                        (1|Nest)+offset(log(BroodSize)),
+                    contrasts=list(FoodTreatment="contr.sum",
+                                   SexParent="contr.sum"),
+                    family = nbinom1,
+                    zi = ~1, data=Owls)
 
 ## ----fit_model3,cache=TRUE----------------------------------------------------
 data("cbpp",package="lme4")
@@ -96,9 +97,12 @@ summary(g1)
 
 ## ----broom_mixed,fig.height=3,fig.width=5-------------------------------------
 if (requireNamespace("broom.mixed") && requireNamespace("dotwhisker")) {
-  (t1 <- broom.mixed::tidy(owls_nb1, conf.int = TRUE))
+  t1 <- broom.mixed::tidy(owls_nb1, conf.int = TRUE)
+  t1 <- transform(t1,
+                  term=sprintf("%s.%s", component, term))
+
   if (packageVersion("dotwhisker")>"0.4.1") {
-    dw <- dwplot(owls_nb1)
+    dw <- dwplot(t1)
   } else {
     owls_nb1$coefficients <- TRUE  ## hack!
     dw <- dwplot(owls_nb1,by_2sd=FALSE)
@@ -133,7 +137,7 @@ source(system.file("other_methods","extract.R",package="glmmTMB"))
 texreg(owls_nb1,caption="Owls model", label="tab:owls")
 
 ## ----huxtable,results="asis",eval=FALSE---------------------------------------
-#  library("huxtable")
+#  ## library("huxtable")
 #  cc <- c("intercept (mean)"="(Intercept)",
 #          "food treatment (starvation)"="FoodTreatment1",
 #          "parental sex (M)"="SexParent1",

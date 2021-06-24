@@ -4,8 +4,9 @@ list(EVAL = FALSE)
 ## ----setup, include=FALSE, message=FALSE--------------------------------------
 library(knitr)
 library(glmmTMB)
-library(MASS)  ## for mvrnorm()
-library(TMB) ## for tmbprofile()
+library(MASS)    ## for mvrnorm()
+library(TMB)     ## for tmbprofile()
+library(mvabund) ## for spider data
 ## devtools::install_github("kaskr/adcomp/TMB")  ## get development version
 knitr::opts_chunk$set(echo = TRUE, eval=if (exists("params")) params$EVAL else FALSE)
 do_image <- exists("params") && params$EVAL
@@ -274,4 +275,28 @@ usefig("us_profile_plot.png")
 
 ## ----fit.cs.profile_image,echo=FALSE,eval=TRUE--------------------------------
 usefig("cs_profile_plot.png")
+
+## ----rr_ex, eval = FALSE------------------------------------------------------
+#  if (require(mvabund)) {
+#      data(spider)
+#      ## organize data into long format
+#      sppTot <- sort(colSums(spider$abund), decreasing = TRUE)
+#      tmp <- cbind(spider$abund, spider$x)
+#      tmp$id <- 1:nrow(tmp)
+#      spiderDat <- reshape(tmp,
+#                           idvar = "id",
+#                           timevar = "Species",
+#                           times =  colnames(spider$abund),
+#                           varying = list(colnames(spider$abund)),
+#                           v.names = "abund",
+#                           direction = "long")
+#      ## fit rank-reduced models with varying dimension
+#      fit_list <- lapply(2:10,
+#                         function(d) {
+#                             fit.rr <- glmmTMB(abund ~ Species + rr(Species + 0|id, d = d),
+#                                               data = spiderDat)
+#                         })
+#      ## compare fits via AIC
+#      aic_vec <- sapply(fit_list, AIC)
+#      aic_vec - min(aic_vec, na.rm = TRUE)
 

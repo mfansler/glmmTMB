@@ -12,49 +12,47 @@
 
 <meta name="author" content="Nafis Sadat" />
 
-<meta name="date" content="2020-07-01" />
+<meta name="date" content="2021-06-23" />
 
 <title>Parallel optimization using glmmTMB</title>
 
 
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
 
-<style type="text/css">code{white-space: pre;}</style>
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
 <style type="text/css" data-origin="pandoc">
-div.sourceCode { overflow-x: auto; }
 table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
   margin: 0; padding: 0; vertical-align: baseline; border: none; }
 table.sourceCode { width: 100%; line-height: 100%; }
 td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
 td.sourceCode { padding-left: 5px; }
-code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
-code > span.dt { color: #902000; } /* DataType */
-code > span.dv { color: #40a070; } /* DecVal */
-code > span.bn { color: #40a070; } /* BaseN */
-code > span.fl { color: #40a070; } /* Float */
-code > span.ch { color: #4070a0; } /* Char */
-code > span.st { color: #4070a0; } /* String */
-code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
-code > span.ot { color: #007020; } /* Other */
-code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
-code > span.fu { color: #06287e; } /* Function */
-code > span.er { color: #ff0000; font-weight: bold; } /* Error */
-code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
-code > span.cn { color: #880000; } /* Constant */
-code > span.sc { color: #4070a0; } /* SpecialChar */
-code > span.vs { color: #4070a0; } /* VerbatimString */
-code > span.ss { color: #bb6688; } /* SpecialString */
-code > span.im { } /* Import */
-code > span.va { color: #19177c; } /* Variable */
-code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
-code > span.op { color: #666666; } /* Operator */
-code > span.bu { } /* BuiltIn */
-code > span.ex { } /* Extension */
-code > span.pp { color: #bc7a00; } /* Preprocessor */
-code > span.at { color: #7d9029; } /* Attribute */
-code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
-code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
-code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
-code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
 
 </style>
 <script>
@@ -81,7 +79,8 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 
-<link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
+
+<link href="data:text/css,body%20%7B%0A%20%20background%2Dcolor%3A%20%23fff%3B%0A%20%20margin%3A%201em%20auto%3B%0A%20%20max%2Dwidth%3A%20700px%3B%0A%20%20overflow%3A%20visible%3B%0A%20%20padding%2Dleft%3A%202em%3B%0A%20%20padding%2Dright%3A%202em%3B%0A%20%20font%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0A%20%20font%2Dsize%3A%2014px%3B%0A%20%20line%2Dheight%3A%201%2E35%3B%0A%7D%0A%0A%23TOC%20%7B%0A%20%20clear%3A%20both%3B%0A%20%20margin%3A%200%200%2010px%2010px%3B%0A%20%20padding%3A%204px%3B%0A%20%20width%3A%20400px%3B%0A%20%20border%3A%201px%20solid%20%23CCCCCC%3B%0A%20%20border%2Dradius%3A%205px%3B%0A%0A%20%20background%2Dcolor%3A%20%23f6f6f6%3B%0A%20%20font%2Dsize%3A%2013px%3B%0A%20%20line%2Dheight%3A%201%2E3%3B%0A%7D%0A%20%20%23TOC%20%2Etoctitle%20%7B%0A%20%20%20%20font%2Dweight%3A%20bold%3B%0A%20%20%20%20font%2Dsize%3A%2015px%3B%0A%20%20%20%20margin%2Dleft%3A%205px%3B%0A%20%20%7D%0A%0A%20%20%23TOC%20ul%20%7B%0A%20%20%20%20padding%2Dleft%3A%2040px%3B%0A%20%20%20%20margin%2Dleft%3A%20%2D1%2E5em%3B%0A%20%20%20%20margin%2Dtop%3A%205px%3B%0A%20%20%20%20margin%2Dbottom%3A%205px%3B%0A%20%20%7D%0A%20%20%23TOC%20ul%20ul%20%7B%0A%20%20%20%20margin%2Dleft%3A%20%2D2em%3B%0A%20%20%7D%0A%20%20%23TOC%20li%20%7B%0A%20%20%20%20line%2Dheight%3A%2016px%3B%0A%20%20%7D%0A%0Atable%20%7B%0A%20%20margin%3A%201em%20auto%3B%0A%20%20border%2Dwidth%3A%201px%3B%0A%20%20border%2Dcolor%3A%20%23DDDDDD%3B%0A%20%20border%2Dstyle%3A%20outset%3B%0A%20%20border%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0A%20%20border%2Dwidth%3A%202px%3B%0A%20%20padding%3A%205px%3B%0A%20%20border%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0A%20%20border%2Dwidth%3A%201px%3B%0A%20%20border%2Dstyle%3A%20inset%3B%0A%20%20line%2Dheight%3A%2018px%3B%0A%20%20padding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0A%20%20border%2Dleft%2Dstyle%3A%20none%3B%0A%20%20border%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0A%20%20background%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0A%0Ap%20%7B%0A%20%20margin%3A%200%2E5em%200%3B%0A%7D%0A%0Ablockquote%20%7B%0A%20%20background%2Dcolor%3A%20%23f6f6f6%3B%0A%20%20padding%3A%200%2E25em%200%2E75em%3B%0A%7D%0A%0Ahr%20%7B%0A%20%20border%2Dstyle%3A%20solid%3B%0A%20%20border%3A%20none%3B%0A%20%20border%2Dtop%3A%201px%20solid%20%23777%3B%0A%20%20margin%3A%2028px%200%3B%0A%7D%0A%0Adl%20%7B%0A%20%20margin%2Dleft%3A%200%3B%0A%7D%0A%20%20dl%20dd%20%7B%0A%20%20%20%20margin%2Dbottom%3A%2013px%3B%0A%20%20%20%20margin%2Dleft%3A%2013px%3B%0A%20%20%7D%0A%20%20dl%20dt%20%7B%0A%20%20%20%20font%2Dweight%3A%20bold%3B%0A%20%20%7D%0A%0Aul%20%7B%0A%20%20margin%2Dtop%3A%200%3B%0A%7D%0A%20%20ul%20li%20%7B%0A%20%20%20%20list%2Dstyle%3A%20circle%20outside%3B%0A%20%20%7D%0A%20%20ul%20ul%20%7B%0A%20%20%20%20margin%2Dbottom%3A%200%3B%0A%20%20%7D%0A%0Apre%2C%20code%20%7B%0A%20%20background%2Dcolor%3A%20%23f7f7f7%3B%0A%20%20border%2Dradius%3A%203px%3B%0A%20%20color%3A%20%23333%3B%0A%20%20white%2Dspace%3A%20pre%2Dwrap%3B%20%20%20%20%2F%2A%20Wrap%20long%20lines%20%2A%2F%0A%7D%0Apre%20%7B%0A%20%20border%2Dradius%3A%203px%3B%0A%20%20margin%3A%205px%200px%2010px%200px%3B%0A%20%20padding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0A%20%20background%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0A%0Acode%20%7B%0A%20%20font%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0A%20%20font%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0A%20%20padding%3A%202px%200px%3B%0A%7D%0A%0Adiv%2Efigure%20%7B%0A%20%20text%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0A%20%20background%2Dcolor%3A%20%23FFFFFF%3B%0A%20%20padding%3A%202px%3B%0A%20%20border%3A%201px%20solid%20%23DDDDDD%3B%0A%20%20border%2Dradius%3A%203px%3B%0A%20%20border%3A%201px%20solid%20%23CCCCCC%3B%0A%20%20margin%3A%200%205px%3B%0A%7D%0A%0Ah1%20%7B%0A%20%20margin%2Dtop%3A%200%3B%0A%20%20font%2Dsize%3A%2035px%3B%0A%20%20line%2Dheight%3A%2040px%3B%0A%7D%0A%0Ah2%20%7B%0A%20%20border%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0A%20%20padding%2Dtop%3A%2010px%3B%0A%20%20padding%2Dbottom%3A%202px%3B%0A%20%20font%2Dsize%3A%20145%25%3B%0A%7D%0A%0Ah3%20%7B%0A%20%20border%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0A%20%20padding%2Dtop%3A%2010px%3B%0A%20%20font%2Dsize%3A%20120%25%3B%0A%7D%0A%0Ah4%20%7B%0A%20%20border%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0A%20%20margin%2Dleft%3A%208px%3B%0A%20%20font%2Dsize%3A%20105%25%3B%0A%7D%0A%0Ah5%2C%20h6%20%7B%0A%20%20border%2Dbottom%3A%201px%20solid%20%23ccc%3B%0A%20%20font%2Dsize%3A%20105%25%3B%0A%7D%0A%0Aa%20%7B%0A%20%20color%3A%20%230033dd%3B%0A%20%20text%2Ddecoration%3A%20none%3B%0A%7D%0A%20%20a%3Ahover%20%7B%0A%20%20%20%20color%3A%20%236666ff%3B%20%7D%0A%20%20a%3Avisited%20%7B%0A%20%20%20%20color%3A%20%23800080%3B%20%7D%0A%20%20a%3Avisited%3Ahover%20%7B%0A%20%20%20%20color%3A%20%23BB00BB%3B%20%7D%0A%20%20a%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0A%20%20%20%20text%2Ddecoration%3A%20underline%3B%20%7D%0A%20%20a%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0A%20%20%20%20text%2Ddecoration%3A%20underline%3B%20%7D%0A%0A%2F%2A%20Class%20described%20in%20https%3A%2F%2Fbenjeffrey%2Ecom%2Fposts%2Fpandoc%2Dsyntax%2Dhighlighting%2Dcss%0A%20%20%20Colours%20from%20https%3A%2F%2Fgist%2Egithub%2Ecom%2Frobsimmons%2F1172277%20%2A%2F%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%2F%2A%20Keyword%20%2A%2F%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%2F%2A%20DataType%20%2A%2F%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%2F%2A%20DecVal%20%28decimal%20values%29%20%2A%2F%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%2F%2A%20BaseN%20%2A%2F%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%2F%2A%20Float%20%2A%2F%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%2F%2A%20Char%20%2A%2F%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%2F%2A%20String%20%2A%2F%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%2F%2A%20Comment%20%2A%2F%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%2F%2A%20OtherToken%20%2A%2F%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%2F%2A%20AlertToken%20%2A%2F%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%2F%2A%20Function%20calls%20%2A%2F%0Acode%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%2F%2A%20ErrorTok%20%2A%2F%0A%0A" rel="stylesheet" type="text/css" />
 
 
 
@@ -95,109 +94,111 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Parallel optimization using glmmTMB</h1>
 <h4 class="author">Nafis Sadat</h4>
-<h4 class="date">2020-07-01</h4>
+<h4 class="date">2021-06-23</h4>
 
 
 
 <p>A new, experimental feature of <code>glmmTMB</code> is the ability to parallelize the optimization process. This vignette shows an example and timing of a simple model fit with and without parallelizing across threads.</p>
-<p>If your OS supports OpenMP parallelization and R was installed using OpenMP, <code>glmmTMB</code> will automatically pick up the OpenMP flags from R’s <code>Makevars</code> and compile the C++ model with OpenMP support. If the flag is not available, then the model will be compiled with serial optimization only.</p>
+<p>If your OS supports OpenMP parallelization and R was installed using OpenMP, <code>glmmTMB</code> will automatically pick up the OpenMP flags from R's <code>Makevars</code> and compile the C++ model with OpenMP support. If the flag is not available, then the model will be compiled with serial optimization only.</p>
 <p>Load packages:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(glmmTMB)
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(glmmTMB)
 <span class="kw">set.seed</span>(<span class="dv">1</span>)
-nt &lt;-<span class="st"> </span><span class="kw">min</span>(parallel<span class="op">::</span><span class="kw">detectCores</span>(),<span class="dv">5</span>)</code></pre></div>
+nt &lt;-<span class="st"> </span><span class="kw">min</span>(parallel::<span class="kw">detectCores</span>(),<span class="dv">5</span>)</code></pre>
 <p>Simulate a dataset with large <code>N</code>:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">N &lt;-<span class="st"> </span><span class="fl">3e5</span>
+<pre class="sourceCode r"><code class="sourceCode r">N &lt;-<span class="st"> </span><span class="fl">3e5</span>
 xdata &lt;-<span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">1</span>, <span class="dv">2</span>)
-ydata &lt;-<span class="st"> </span><span class="fl">0.3</span> <span class="op">+</span><span class="st"> </span><span class="fl">0.4</span><span class="op">*</span>xdata <span class="op">+</span><span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">0</span>, <span class="fl">0.25</span>)</code></pre></div>
+ydata &lt;-<span class="st"> </span><span class="fl">0.3</span> +<span class="st"> </span><span class="fl">0.4</span>*xdata +<span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">0</span>, <span class="fl">0.25</span>)</code></pre>
 <p>First, we fit the model serially. We can pass the number of parallelizing process we want using the <code>parallel</code> parameter in <code>glmmTMBcontrol</code>:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">system.time</span>(
-  model1 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(<span class="dt">formula =</span> ydata <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>xdata,
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">system.time</span>(
+  model1 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(<span class="dt">formula =</span> ydata ~<span class="st"> </span><span class="dv">1</span> +<span class="st"> </span>xdata,
                     <span class="dt">control =</span> <span class="kw">glmmTMBControl</span>(<span class="dt">parallel =</span> <span class="dv">1</span>))
-  )</code></pre></div>
+  )</code></pre>
 <pre><code>##    user  system elapsed 
-##   2.457   0.287   3.120</code></pre>
-<p>Now, we fit the same model using five threads (or as many as possible - 4 in this case):</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">system.time</span>(
-  model2 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(<span class="dt">formula =</span> ydata <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>xdata,
+##   2.888   0.162   3.051</code></pre>
+<p>Now, we fit the same model using five threads (or as many as possible - 5 in this case):</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">system.time</span>(
+  model2 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(<span class="dt">formula =</span> ydata ~<span class="st"> </span><span class="dv">1</span> +<span class="st"> </span>xdata,
                     <span class="dt">control =</span> <span class="kw">glmmTMBControl</span>(<span class="dt">parallel =</span> nt))
-  )</code></pre></div>
+  )</code></pre>
 <pre><code>##    user  system elapsed 
-##   2.176   0.275   2.484</code></pre>
+##   3.047   0.082   2.973</code></pre>
 <p>The speed-up is definitely more visible on models with a much larger number of observations, or in models with random effects.</p>
-<p>Here’s an example where we have an IID Gaussian random effect. We first simulate the data with 200 groups (our random effect):</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">xdata &lt;-<span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">1</span>, <span class="dv">2</span>)
+<p>Here's an example where we have an IID Gaussian random effect. We first simulate the data with 200 groups (our random effect):</p>
+<pre class="sourceCode r"><code class="sourceCode r">xdata &lt;-<span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">1</span>, <span class="dv">2</span>)
 groups &lt;-<span class="st"> </span><span class="dv">200</span>
-data_use &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">obs =</span> <span class="dv">1</span><span class="op">:</span>N)
+data_use &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">obs =</span> <span class="dv">1</span>:N)
 data_use &lt;-<span class="st"> </span><span class="kw">within</span>(data_use,
 {
   
-  group_var &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="kw">seq</span>(groups), <span class="dt">times =</span> <span class="kw">nrow</span>(data_use) <span class="op">/</span><span class="st"> </span>groups)
+  group_var &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="kw">seq</span>(groups), <span class="dt">times =</span> <span class="kw">nrow</span>(data_use) /<span class="st"> </span>groups)
   group_intercept &lt;-<span class="st"> </span><span class="kw">rnorm</span>(groups, <span class="dv">0</span>, <span class="fl">0.1</span>)[group_var]
   xdata &lt;-<span class="st"> </span>xdata
-  ydata &lt;-<span class="st"> </span><span class="fl">0.3</span> <span class="op">+</span><span class="st"> </span>group_intercept <span class="op">+</span><span class="st"> </span><span class="fl">0.5</span><span class="op">*</span>xdata <span class="op">+</span><span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">0</span>, <span class="fl">0.25</span>)
-})</code></pre></div>
+  ydata &lt;-<span class="st"> </span><span class="fl">0.3</span> +<span class="st"> </span>group_intercept +<span class="st"> </span><span class="fl">0.5</span>*xdata +<span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dv">0</span>, <span class="fl">0.25</span>)
+})</code></pre>
 <p>We fit the random effect model, first with a single thread:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">(t_serial &lt;-<span class="st"> </span><span class="kw">system.time</span>(
-  model3 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(<span class="dt">formula =</span> ydata <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>xdata <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>group_var), <span class="dt">data =</span> data_use, <span class="dt">control =</span> <span class="kw">glmmTMBControl</span>(<span class="dt">parallel =</span> <span class="dv">1</span>))
+<pre class="sourceCode r"><code class="sourceCode r">(t_serial &lt;-<span class="st"> </span><span class="kw">system.time</span>(
+  model3 &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(<span class="dt">formula =</span> ydata ~<span class="st"> </span><span class="dv">1</span> +<span class="st"> </span>xdata +<span class="st"> </span>(<span class="dv">1</span> |<span class="st"> </span>group_var), <span class="dt">data =</span> data_use, <span class="dt">control =</span> <span class="kw">glmmTMBControl</span>(<span class="dt">parallel =</span> <span class="dv">1</span>))
  )
-)</code></pre></div>
+)</code></pre>
 <pre><code>##    user  system elapsed 
-##  19.522   2.332  24.804</code></pre>
-<p>Now we fit the same model, but using 4 threads. The speed-up is more noticeable with this model.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">(t_parallel &lt;-<span class="st"> </span><span class="kw">system.time</span>(
+##  22.733   0.880  23.615</code></pre>
+<p>Now we fit the same model, but using 5 threads. The speed-up is more noticeable with this model.</p>
+<pre class="sourceCode r"><code class="sourceCode r">(t_parallel &lt;-<span class="st"> </span><span class="kw">system.time</span>(
      <span class="kw">update</span>(model3,  <span class="dt">control =</span> <span class="kw">glmmTMBControl</span>(<span class="dt">parallel =</span> nt))
  )
-)</code></pre></div>
+)</code></pre>
 <pre><code>##    user  system elapsed 
-##  18.908   2.186  21.956</code></pre>
+##  22.186   0.627  22.631</code></pre>
 <div id="notes-on-openmp-support" class="section level2">
 <h2>Notes on OpenMP support</h2>
 <p>From <a href="https://cran.r-project.org/doc/manuals/r-devel/R-exts.html#OpenMP-support">Writing R Extensions</a>:</p>
 <blockquote>
-<p>Apple builds of clang on macOS currently have no OpenMP support, but CRAN binary packages are built with a clang-based toolchain which supports OpenMP. <a href="http://www.openmp.org/resources/openmp-compilers-tools" class="uri">http://www.openmp.org/resources/openmp-compilers-tools</a> gives some idea of what compilers support what versions.</p>
+<p>Apple builds of clang on macOS currently have no OpenMP support, but CRAN binary packages are built with a clang-based toolchain which supports OpenMP. <a href="https://www.openmp.org/resources/openmp-compilers-tools">https://www.openmp.org/resources/openmp-compilers-tools</a> gives some idea of what compilers support what versions.</p>
 </blockquote>
 <blockquote>
 <p>The performance of OpenMP varies substantially between platforms. The Windows implementation has substantial overheads, so is only beneficial if quite substantial tasks are run in parallel. Also, on Windows new threads are started with the default FPU control word, so computations done on OpenMP threads will not make use of extended-precision arithmetic which is the default for the main process. ## System information</p>
 </blockquote>
-<p>This report was built using 4 parallel threads (on a machine with a total of 4 cores)</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(<span class="kw">sessionInfo</span>(), <span class="dt">locale=</span><span class="ot">FALSE</span>)</code></pre></div>
-<pre><code>## R version 3.6.3 (2020-02-29)
-## Platform: x86_64-apple-darwin15.6.0 (64-bit)
-## Running under: macOS Catalina 10.15.5
+<p>This report was built using 5 parallel threads (on a machine with a total of 20 cores)</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(<span class="kw">sessionInfo</span>(), <span class="dt">locale=</span><span class="ot">FALSE</span>)</code></pre>
+<pre><code>## R version 4.1.0 (2021-05-18)
+## Platform: x86_64-pc-linux-gnu (64-bit)
+## Running under: Scientific Linux 7.7 (Nitrogen)
 ## 
 ## Matrix products: default
-## BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
-## LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+## BLAS/LAPACK: /zdata/groups/nfsopt/intel/2017update4/compilers_and_libraries_2017.4.196/linux/mkl/lib/intel64_lin/libmkl_gf_lp64.so
 ## 
 ## attached base packages:
 ## [1] grid      stats     graphics  grDevices utils     datasets  methods  
 ## [8] base     
 ## 
 ## other attached packages:
-## [1] png_0.1-7       ggplot2_3.3.2   lattice_0.20-38 reshape2_1.4.3 
-## [5] coda_0.19-3     TMB_1.7.16      MASS_7.3-51.5   glmmTMB_1.0.2.1
-## [9] knitr_1.28     
+##  [1] png_0.1-7       ggplot2_3.3.3   lattice_0.20-44 reshape2_1.4.4 
+##  [5] coda_0.19-4     mvabund_4.1.12  TMB_1.7.20      MASS_7.3-54    
+##  [9] glmmTMB_1.1.1   knitr_1.33     
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] tidyselect_0.2.5    zoo_1.8-7           xfun_0.12          
-##  [4] purrr_0.3.3         splines_3.6.3       colorspace_1.4-1   
-##  [7] vctrs_0.3.1         stats4_3.6.3        htmltools_0.4.0    
-## [10] yaml_2.2.1          survival_3.1-8      rlang_0.4.6        
-## [13] nloptr_1.2.1        pillar_1.4.4        withr_2.2.0        
-## [16] glue_1.4.1          emmeans_1.4.3.01    multcomp_1.4-10    
-## [19] lifecycle_0.2.0     plyr_1.8.6          stringr_1.4.0      
-## [22] munsell_0.5.0       gtable_0.3.0        bdsmatrix_1.3-4    
-## [25] mvtnorm_1.1-1       codetools_0.2-16    evaluate_0.14      
-## [28] labeling_0.3        parallel_3.6.3      TH.data_1.0-10     
-## [31] Rcpp_1.0.4.6        xtable_1.8-4        scales_1.1.1       
-## [34] farver_2.0.3        lme4_1.1-21         digest_0.6.25      
-## [37] stringi_1.4.6       dplyr_0.8.3         numDeriv_2016.8-1.1
-## [40] tools_3.6.3         bbmle_1.0.23.1      sandwich_2.5-1     
-## [43] magrittr_1.5        tibble_3.0.1        crayon_1.3.4       
-## [46] pkgconfig_2.0.3     ellipsis_0.3.1      Matrix_1.2-18      
-## [49] estimability_1.3    assertthat_0.2.1    minqa_1.2.4        
-## [52] rmarkdown_2.1       R6_2.4.1            boot_1.3-24        
-## [55] nlme_3.1-144        compiler_3.6.3</code></pre>
+##  [1] bdsmatrix_1.3-4     Rcpp_1.0.6          mvtnorm_1.1-2      
+##  [4] zoo_1.8-9           digest_0.6.27       utf8_1.2.1         
+##  [7] tweedie_2.3.3       R6_2.5.0            plyr_1.8.6         
+## [10] stats4_4.1.0        evaluate_0.14       highr_0.9          
+## [13] pillar_1.6.1        rlang_0.4.11        multcomp_1.4-17    
+## [16] minqa_1.2.4         nloptr_1.2.2.2      jquerylib_0.1.4    
+## [19] Matrix_1.3-4        bbmle_1.0.23.1      rmarkdown_2.8      
+## [22] labeling_0.4.2      splines_4.1.0       lme4_1.1-27.1      
+## [25] statmod_1.4.36      stringr_1.4.0       munsell_0.5.0      
+## [28] compiler_4.1.0      numDeriv_2016.8-1.1 xfun_0.23          
+## [31] pkgconfig_2.0.3     htmltools_0.5.1.1   tidyselect_1.1.1   
+## [34] tibble_3.1.2        codetools_0.2-18    fansi_0.5.0        
+## [37] crayon_1.4.1        dplyr_1.0.6         withr_2.4.2        
+## [40] nlme_3.1-152        jsonlite_1.7.2      xtable_1.8-4       
+## [43] gtable_0.3.0        lifecycle_1.0.0     magrittr_2.0.1     
+## [46] scales_1.1.1        estimability_1.3    stringi_1.6.2      
+## [49] farver_2.1.0        bslib_0.2.5.1       ellipsis_0.3.2     
+## [52] vctrs_0.3.8         generics_0.1.0      boot_1.3-28        
+## [55] sandwich_3.0-1      TH.data_1.0-10      tools_4.1.0        
+## [58] glue_1.4.2          purrr_0.3.4         emmeans_1.6.1      
+## [61] parallel_4.1.0      survival_3.2-11     yaml_2.2.1         
+## [64] colorspace_2.0-1    sass_0.4.0</code></pre>
 </div>
 
 

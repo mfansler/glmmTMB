@@ -39,18 +39,12 @@ RHSForm <- function(form,as.form=FALSE) {
     formula
 }
 
-## Random Effects formula only
-## reOnly <- function(f,response=FALSE) {
-##    response <- if (response && length(f)==3) f[[2]] else NULL
-##    reformulate(paste0("(", vapply(findbars(f), safeDeparse, ""), ")"),
-##                response=response)
-## }
 
 sumTerms <- function(termList) {
     Reduce(function(x,y) makeOp(x,y,op=quote(`+`)),termList)
 }
 
-## better version -- operates on language objects (no deparse())
+## extract random effects component of formula
 reOnly <- function(f,response=FALSE,bracket=TRUE) {
     ff <- f
     if (bracket)
@@ -314,6 +308,7 @@ splitForm <- function(formula,
 
         reTrmFormulas <- c(lapply(formSplitStan, "[[", 2),
                            lapply(formSplitSpec, "[[", 2))
+        reTrmFormulas <- unlist(reTrmFormulas) # Fix me:: added for rr structure when it has n = 2, gives a list of list... quick fix
         reTrmClasses <- c(rep(defaultTerm, length(formSplitStan)),
                           sapply(lapply(formSplitSpec, "[[", 1), as.character))
     } else {
@@ -382,7 +377,7 @@ noSpecials_ <- function(term,delete=TRUE, debug=FALSE) {
             term[[3]] <- nb3
             return(term)
         }
-    } 
+    }
 }
 
 isSpecial <- function(term) {
@@ -435,13 +430,14 @@ inForm <- function(form,value) {
 ##' extractForm(~a+offset(b),quote(offset))
 ##' extractForm(~c,quote(offset))
 ##' extractForm(~a+offset(b)+offset(c),quote(offset))
+##' extractForm(~offset(x),quote(offset))
 ##' @export
 ##' @keywords internal
 extractForm <- function(term,value) {
     if (!inForm(term,value)) return(NULL)
     if (is.name(term) || !is.language(term)) return(NULL)
     if (identical(head(term),value)) {
-        return(term)
+        return(list(term))
     }
     if (length(term) == 2) {
         return(extractForm(term[[2]],value))
@@ -453,7 +449,7 @@ extractForm <- function(term,value) {
 ##' return a formula/expression with a given value stripped, where
 ##' it occurs as the head of a term
 ##' @rdname formFuns
-##' @examples 
+##' @examples
 ##' dropHead(~a+offset(b),quote(offset))
 ##' dropHead(~a+poly(x+z,3)+offset(b),quote(offset))
 ##' @export
@@ -596,19 +592,19 @@ fix_predvars <- function(pv,tt) {
         tt <- RHSForm(tt, as.form=TRUE)
     }
     ## ugh, deparsing again ...
-    tt_vars <- vapply(attr(tt,"variables"),deparse,character(1))[-1]
+    tt_vars <- vapply(attr(tt, "variables"), deparse1, character(1))[-1]
     ## remove terminal paren - e.g. match term poly(x, 2) to
     ##   predvar poly(x, 2, <stuff>)
     ## beginning of string, including open-paren, colon
-    ##  and *first* comma but not arg ... 
+    ##  but not *first* comma nor arg ...
+    ##  could possibly try init_regexp <- "^([^,]+).*" ?
     init_regexp <- "^([(^:_.[:alnum:]]+).*"
     tt_vars_short <- gsub(init_regexp,"\\1",tt_vars)
     if (is.null(pv) || length(tt_vars)==0) return(NULL)
     new_pv <- quote(list())
-    ## maybe multiple variables per pv term ... [[-1]] ignores head
+    ## maybe multiple variables per pv term ... [-1] ignores head
     ## FIXME: test for really long predvar strings ????
-    pv_strings <- vapply(pv,deparse,FUN.VALUE=character(1),
-                         width.cutoff=500)[-1]
+    pv_strings <- vapply(pv,deparse1,FUN.VALUE=character(1))[-1]
     pv_strings <- gsub(init_regexp,"\\1",pv_strings)
     for (i in seq_along(tt_vars)) {
         w <- match(tt_vars_short[[i]],pv_strings)
@@ -627,13 +623,15 @@ hasRandom <- function(x) {
     return(length(unlist(pl[grep("^theta",names(pl))]))>0)
 }
 
+## retrieve parameters by name or index
 getParms <- function(parm=NULL, object, full=FALSE) {
     vv <- vcov(object, full=TRUE)
     sds <- sqrt(diag(vv))
-    pnames <- names(sds) <- rownames(vv)
+    pnames <- names(sds) <- rownames(vv)       ## parameter names (user-facing)
     intnames <- names(object$obj$env$last.par) ## internal names
-    ## "beta" vals may be identified by object$obj$env$random, if REML
-    intnames <- intnames[intnames != "b"]
+    ## don't use object$obj$env$random; we want to keep "beta" vals, which may be
+    ## counted as "random" if using REML
+    intnames <- intnames[!intnames %in% c("b","bzi")]
     if (length(pnames) != length(sds)) { ## shouldn't happen ...
         stop("length mismatch between internal and external parameter names")
     }
@@ -647,7 +645,7 @@ getParms <- function(parm=NULL, object, full=FALSE) {
     }
     if (is.character(parm)) {
         if (identical(parm,"theta_")) {
-            parm <- which(intnames=="theta")
+            parm <- grep("^theta",intnames)
         } else if (identical(parm,"beta_")) {
             if (trivialDisp(object)) {
                 ## include conditional and zi params
@@ -689,3 +687,70 @@ check_dots <- function(..., action="stop") {
     }
     return(NULL)
 }
+
+if (getRversion()<"4.0.0") {
+    deparse1 <- function (expr, collapse = " ", width.cutoff = 500L, ...) {
+        paste(deparse(expr, width.cutoff, ...), collapse = collapse)
+    }
+}
+
+## in case these are useful, we can document and export them later ...
+#' @importFrom stats rnbinom qnbinom dnbinom pnbinom
+
+rnbinom1 <- function(n, mu, phi) {
+    ## var = mu*(1+phi) = mu*(1+mu/k) -> k = mu/phi
+    rnbinom(n, mu=mu, size=mu/phi)
+}
+
+dnbinom1 <- function(x, mu, phi, ...) {
+    dnbinom(x, mu=mu, size=mu/phi, ...)
+}
+
+pnbinom1 <- function(q, mu, phi, ...) {
+    pnbinom(q, mu=mu, size=mu/phi, ...)
+}
+
+qnbinom1 <- function(p, mu, phi, ...) {
+    qnbinom(p, mu=mu, size=mu/phi, ...)
+}
+
+nullSparseMatrix <- function() {
+    argList <- list(
+        dims=c(0,0),
+        i=integer(0),
+        j=integer(0),
+        x=numeric(0))
+    if (utils::packageVersion("Matrix")<"1.3.0") {
+        do.call(Matrix::sparseMatrix, c(argList, list(giveCsparse=FALSE)))
+    } else {
+        do.call(Matrix::sparseMatrix, c(argList, list(repr="T")))
+    }
+}
+
+
+##' Check OpenMP status
+##'
+##' Checks whether OpenMP has been successfully enabled for this
+##' installation of the package. (Use the \code{parallel} argument
+##' to \code{\link{glmmTMBControl}}, or set \code{options(glmmTMB.cores=[value])},
+##' to specify that computations should be done in parallel.)
+##' @seealso \code{\link[TMB]{benchmark}}, \code{\link{glmmTMBControl}}
+##' @return \code{TRUE} or {FALSE} depending on availability of OpenMP
+##' @export
+omp_check <- function() {
+    .Call("omp_check", PACKAGE="glmmTMB")
+}
+
+get_pars <- function(object, unlist=TRUE) {
+    ee <- object$obj$env
+    x <- ee$last.par.best
+    ## work around built-in default to parList, which
+    ##  is bad if no random component
+    if (length(ee$random)>0) x <- x[-ee$random]
+    p <- ee$parList(x=x)
+    if (!unlist) return(p)
+    p <- unlist(p[names(p)!="b"])  ## drop primary RE
+    names(p) <- gsub("[0-9]+$","",names(p)) ## remove disambiguators
+    return(p)
+}
+

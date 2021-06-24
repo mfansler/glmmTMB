@@ -3,10 +3,84 @@
 \name{NEWS}
 \title{glmmTMB News}
 \encoding{UTF-8}
-\section{CHANGES IN VERSION 1.0.2.1}{
-	\itemize{
-      \item fix documentation links for CRAN checks
-	}
+\section{CHANGES IN VERSION 1.1.0}{
+  \strong{NOTE on OpenMP parallelization:} due to difficulties with
+  OpenMP parallelization for some combinations of Windows
+  versions/compiler/etc., we have temporarily disabled OpenMP
+  in this release. To re-enable it, users can (1) add the lines
+  \code{PKG_LIBS += $(SHLIB_OPENMP_CXXFLAGS); PKG_CXXFLAGS +=
+    $(SHLIB_OPENMP_CXXFLAGS)} to the \code{.R/Makevars} file in their
+  home directory before installing from source or (2) install via
+  \preformatted{  
+    withr::with_makevars(
+    assignment = "+=",
+    c(PKG_LIBS = "$(SHLIB_OPENMP_CXXFLAGS)",
+    PKG_CXXFLAGS = "$(SHLIB_OPENMP_CXXFLAGS)"),
+    remotes::install_github("glmmTMB/glmmTMB/glmmTMB@cran_v_1.1.0"))
+  }
+  Users will need development tools installed (compilers etc.)
+  in order to install from source.
+  
+  As soon as the problem is resolved we hope to
+  provide pre-built binaries at \url{https://glmmTMB.github.io/glmmTMB/}
+  and/or release a new minor version.
+
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item reduced rank covariance for GLVMs implemented by M.McGillycuddy 
+      (see covstruct vignette for details)
+      \item \code{diagnose} function to investigate potential causes of convergence problems
+      \item improved parallel processing (GH #620 #652)
+      \item truncated nbinom2 family now includes a \code{variance}
+      component
+    }
+  } % new features
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item \code{Anova} with \code{type="III"} now handles
+      \code{component} argument correctly, more robust to trivial models
+      \item fixed a typo/omission in the type-3 Anova method that made
+      zi Anova break in some conditions (GH #674)
+      \item fixed bugs/inconsistencies in handling of mapped parameters
+      (GH #678)
+      \item \code{confint} with \code{parm="beta_"} or
+      \code{parm="theta_"} now work correctly with more complex models
+      (e.g. including both zero inflation and random effects)
+      (reported by @MKie45 on Stack Overflow)
+      \item \code{confint} works for single-parameter models and those 
+      with a \code{dispformula} (GH #622)
+      \item mapped (fixed) variables could give incorrect predictions (GH #644)
+      \item \code{simulate} is more robust for truncated_nbinom1 and 
+      truncated_nbinom2 (GH #572) 
+    }
+  }
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item "mapped" parameters (i.e., fixed by user rather than
+      optimized) are now given variances/standard deviations of NA rather
+      than 0 in \code{vcov(., include_mapped=TRUE)} and by extension in
+      \code{summary}; hence Z-statistics and P-values will also be NA for
+      these parameters
+      \item row ordering has changed in \code{confint} output data
+      frames (random effects parameters come \emph{last}, matching the
+      row/column order in \code{vcov(., full=TRUE)})
+      \item new \code{fast} flag for predictions decreases memory use
+      and computational time (only if \code{newdata}, \code{newparams}
+      not specified); default in \code{fitted()} method
+      \item improved robustness of beta-binomial fits
+      (results of fitting such models may change slightly from previous
+      versions)
+      \item consistent predictions between link and inverse-link (GH #696)
+      \item improved vignette titles
+      \item The \code{emm_basis} method for \code{glmmTMB} objects now accepts a user-specified covariance matrix (\code{vcov.} argument)
+    }
+  }
+}
+
+\section{CHANGES IN VERSION 1.0.2.1 (2020-07-02)}{
+  \itemize{
+    \item fix documentation links for CRAN checks
+  }
 }
 \section{CHANGES IN VERSION 1.0.2 (unreleased)}{
   \subsection{USER-VISIBLE CHANGES}{
@@ -28,18 +102,17 @@
     \itemize{
       \item \code{summary} and model printing now work if
       \code{control=glmmTMBControl(optimizer=optim)} is used (GH #589)
-      \item structured covariance models now work in zero-inflation and
-      dispersion components (GH #579)
-      \item documentaion of formula for variance in beta family (GH #595)
+      \item structured covariance models now work in zero-inflation components (GH #579)
+      \item documentation of formula for variance in beta family (GH #595)
     }
   } % bug fixes
 }
-\section{CHANGES IN VERSION 1.0.1}{
-	\itemize{
-      \item updated for R-devel changes (R 4.0.0 will set stringsAsFactors=FALSE by default)
-	}
+\section{CHANGES IN VERSION 1.0.1 (2020-03-15)}{
+  \itemize{
+    \item updated for R-devel changes (R 4.0.0 will set stringsAsFactors=FALSE by default)
+  }
 }
-\section{CHANGES IN VERSION 1.0.0}{
+\section{CHANGES IN VERSION 1.0.0 (2020-02-03)}{
 
 The 1.0.0 release does not introduce any major changes or incompatibilities,
 but signifies that glmmTMB is considered stable and reliable for general use.
@@ -90,7 +163,7 @@ but signifies that glmmTMB is considered stable and reliable for general use.
   } % user-visible changes
 } % version 1.0.0
 
-\section{CHANGES IN VERSION 0.2.3}{
+\section{CHANGES IN VERSION 0.2.3 (2019-01-11)}{
   \subsection{NEW FEATURES}{
     \itemize{
       \item \code{ranef} now returns information about conditional variances (as
@@ -122,7 +195,7 @@ but signifies that glmmTMB is considered stable and reliable for general use.
     } % itemize
   } % user-visible
 } % version 0.2.3
-\section{CHANGES IN VERSION 0.2.2}{
+\section{CHANGES IN VERSION 0.2.2 (2018-07-03)}{
   \subsection{NEW FEATURES}{
     \itemize{
       \item REML is now an option (GH #352). It is typically only for
@@ -142,7 +215,7 @@ but signifies that glmmTMB is considered stable and reliable for general use.
   }
 }
 
-\section{CHANGES IN VERSION 0.2.1}{
+\section{CHANGES IN VERSION 0.2.1 (2018-05-11)}{
   \subsection{NEW FEATURES}{
     \itemize{
       \item likelihood profiles (via \code{profile}) and likelihood
