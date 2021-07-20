@@ -8,6 +8,19 @@ knit_hooks$set(document = function(x) {sub('\\usepackage[]{color}', '\\usepackag
 Rver <- paste(R.version$major,R.version$minor,sep=".")
 used.pkgs <- c("glmmTMB","bbmle")  ## packages to report below
 
+## ----solaris_check, echo=FALSE------------------------------------------------
+## https://stackoverflow.com/questions/23840523/check-if-os-is-solaris
+is.solaris <- function() {
+  grepl('SunOS', Sys.info()['sysname'])
+}
+is.windows <- function() {
+  .Platform$OS.type == "windows"
+}
+is.cran <- function() {
+  !identical(Sys.getenv("NOT_CRAN"), "true")
+}
+huxtable_OK <- (!is.solaris()) && !(is.windows() && is.cran())
+
 ## ----packages,message=FALSE---------------------------------------------------
 library(glmmTMB)
 library(car)
@@ -15,15 +28,14 @@ library(emmeans)
 library(effects)
 library(multcomp)
 library(MuMIn)
-library(DHARMa)
+require(DHARMa, quietly = TRUE) ## may be missing ...
 library(broom)
 library(broom.mixed)
 library(dotwhisker)
 library(ggplot2); theme_set(theme_bw())
 library(texreg)
 library(xtable)
-## temporarily disabled: causes problems with <<caranova1>> chunk?
-## library(huxtable)
+if (huxtable_OK) library(huxtable)
 ## retrieve slow stuff
 L <- load(system.file("vignette_data","model_evaluation.rda",
                       package="glmmTMB"))
@@ -36,22 +48,14 @@ owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
                     family = nbinom1,
                     zi = ~1, data=Owls)
 
-## ----fit_model3,cache=TRUE----------------------------------------------------
-data("cbpp",package="lme4")
-cbpp_b1 <- glmmTMB(incidence/size~period+(1|herd),
-                   weights=size,family=binomial,
-                   data=cbpp)
-## simulated three-term Beta example
-set.seed(1001)
-dd <- data.frame(z=rbeta(1000,shape1=2,shape2=3),
-                 a=rnorm(1000),b=rnorm(1000),c=rnorm(1000))
-simex_b1 <- glmmTMB(z~a*b*c,family=beta_family,data=dd)
-
 ## ----dharma_sim,eval=FALSE,message=FALSE--------------------------------------
 #  owls_nb1_simres <- simulateResiduals(owls_nb1)
 
-## ----dharma_plotfig,fig.width=8,fig.height=4----------------------------------
-plot(owls_nb1_simres)
+## ----fake_dharma_plotfig, eval=FALSE------------------------------------------
+#  plot(owls_nb1_simres)
+
+## ----dharma_plotfig,fig.width=8,fig.height=4, echo=FALSE----------------------
+if (require(DHARMa, quietly = TRUE)) plot(owls_nb1_simres)
 
 ## ----caranova1----------------------------------------------------------------
 if (requireNamespace("car") && getRversion() >= "3.6.0") {
@@ -74,14 +78,11 @@ if (effects_ok) {
 ## ----emmeans1-----------------------------------------------------------------
 emmeans(owls_nb1, poly ~ FoodTreatment | SexParent)
 
-## ----drop1_eval,cache=TRUE----------------------------------------------------
-system.time(owls_nb1_d1 <- drop1(owls_nb1,test="Chisq"))
-
 ## ----print_drop1--------------------------------------------------------------
 print(owls_nb1_d1)
 
 ## ----dredge1------------------------------------------------------------------
-owls_nb1_dredge
+print(owls_nb1_dredge)
 
 ## ----plot_dredge1,fig.width=8,fig.height=8------------------------------------
 op <- par(mar=c(2,5,14,3))
@@ -136,22 +137,25 @@ if (requireNamespace("xtable")) {
 source(system.file("other_methods","extract.R",package="glmmTMB"))
 texreg(owls_nb1,caption="Owls model", label="tab:owls")
 
-## ----huxtable,results="asis",eval=FALSE---------------------------------------
-#  ## library("huxtable")
-#  cc <- c("intercept (mean)"="(Intercept)",
-#          "food treatment (starvation)"="FoodTreatment1",
-#          "parental sex (M)"="SexParent1",
-#          "food $\\times$ sex"="FoodTreatment1:SexParent1")
-#  h0 <- huxreg(" "=owls_nb1, # give model blank name so we don't get '(1)'
-#               tidy_args=list(effects="fixed"),
-#               coefs=cc,
-#               error_pos="right",
-#               statistics="nobs" # don't include logLik and AIC
-#               )
-#  names(h0)[2:3] <- c("estimate","std. err.")
-#  ## allow use of math notation in name
-#  h1 <- set_cell_properties(h0,row=5,col=1,escape_contents=FALSE)
-#  cat(to_latex(h1,tabular_only=TRUE))
+## ----huxtable,results="asis"--------------------------------------------------
+if (!huxtable_OK) {
+  cat("Sorry, huxtable+LaTeX is unreliable on this platform; skipping\n")
+} else {
+  cc <- c("intercept (mean)"="(Intercept)",
+          "food treatment (starvation)"="FoodTreatment1",
+          "parental sex (M)"="SexParent1",
+          "food $\\times$ sex"="FoodTreatment1:SexParent1")
+  h0 <- huxreg(" " = owls_nb1, # give model blank name so we don't get '(1)'
+               tidy_args = list(effects="fixed"),
+               coefs = cc,
+               error_pos = "right",
+               statistics = "nobs" # don't include logLik and AIC
+               )
+  names(h0)[2:3] <- c("estimate", "std. err.")
+  ## allow use of math notation in name
+  h1 <- set_cell_properties(h0,row=5,col=1,escape_contents=FALSE)
+  cat(to_latex(h1,tabular_only=TRUE))
+}
 
 ## ----load_infl----------------------------------------------------------------
 source(system.file("other_methods","influence_mixed.R", package="glmmTMB"))

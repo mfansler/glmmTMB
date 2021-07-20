@@ -1,6 +1,23 @@
 ## internal flag for debugging OpenMP behaviour
 debug_openmp <- FALSE
 
+## glmmTMB openmp controller copied from TMB (Windows needs it).
+openmp <- function (n = NULL) {
+    if (debug_openmp && !is.null(n)) {
+        cat("setting OpenMP threads to ", n, "\n")
+    }
+    ## FIXME: redundant with integer-setting within omp_num_threads C++ def in utils.cpp
+    null_arg <- is.null(n)
+    if (!null_arg) n <- as.integer(n)
+    ## only want to warn if attempt to set >1 threads in absence
+    ## of OpenMP support ..
+    if (null_arg || n <= 1) {
+      w <- options(warn = -1)
+      on.exit(options(warn = w[["warn"]]))
+    }
+    .Call("omp_num_threads", n, PACKAGE = "glmmTMB")
+}
+
 ##' Change starting parameters, either by residual method or by user input (start)
 ##' @inheritParams mkTMBStruc
 ##' @param formula current formula, containing both fixed & random effects
@@ -824,12 +841,12 @@ binomialType <- function(x) {
 ##' @importFrom stats update
 ##' @export
 ##' @examples
+##' \donttest{
 ##' (m1 <- glmmTMB(count ~ mined + (1|site),
 ##'   zi=~mined,
 ##'   family=poisson, data=Salamanders))
 ##' summary(m1)
-##' \donttest{
-##' ## Zero-inflated negative binomial model
+##' ##' ## Zero-inflated negative binomial model
 ##' (m2 <- glmmTMB(count ~ spp + mined + (1|site),
 ##'   zi=~spp + mined,
 ##'   family=nbinom2, data=Salamanders))
@@ -863,12 +880,13 @@ binomialType <- function(x) {
 ##' m0 <- glmmTMB(x ~ sd + (1|t), dispformula=~sd, data=dat)
 ##' fixef(m0)$disp
 ##' c(log(5^2), log(10^2)-log(5^2)) # expected dispersion model coefficients
-##' }
+##'
 ##'
 ##' ## Using 'map' to fix random-effects SD to 10
 ##' m1_map <- update(m1, map=list(theta=factor(NA)),
 ##'                  start=list(theta=log(10)))
 ##' VarCorr(m1_map)
+##' }
 glmmTMB <- function(
     formula,
     data = NULL,
@@ -1112,7 +1130,6 @@ glmmTMB <- function(
 ##' @param eigval_check Check eigenvalues of variance-covariance matrix? (This test may be very slow for models with large numbers of fixed-effect parameters.)
 ##' @param zerodisp_val value of the dispersion parameter when \code{dispformula=~0} is specified
 ##' @param start_method (list) Options to initialize the starting values when fitting models with reduced-rank (\code{rr}) covariance structures; \code{jitter.sd} adds variation to the starting values of latent variables when \code{method = "res"}.
-##' @importFrom TMB openmp
 ##' @details
 ##' By default, \code{\link{glmmTMB}} uses the nonlinear optimizer
 ##' \code{\link{nlminb}} for parameter estimation. Users may sometimes
@@ -1255,23 +1272,12 @@ fitTMB <- function(TMBStruc) {
     }
 
     ## Assign OpenMP threads
-    ## Warn if OpenMP not supported and threads>1
-    ## FIXME: custom warning?
-    n_orig <- withCallingHandlers(
-        warning=function(cnd) {
-            if (control$parallel==1) {
-                invokeRestart("muffleWarning")
-            }
-        },
-        TMB::openmp(NULL)
-    )
+    n_orig <- openmp(NULL)
     ## Only proceed farther if OpenMP *is* supported ...
-  if (n_orig>0) {
-    if (debug_openmp) cat("setting OpenMP threads to ", control$parallel, "\n")
-        TMB::openmp(n = control$parallel)
+    if (n_orig > 0) {
+        openmp(n = control$parallel)
         on.exit({
-          if (debug_openmp) cat("resetting OpenMP threads to ", n_orig, "\n")
-          TMB::openmp(n = n_orig)
+          openmp(n = n_orig)
           })
     }
 
