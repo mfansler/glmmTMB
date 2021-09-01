@@ -1,6 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 1.1.2
+Version: 1.1.2.2
 Authors@R: c(person("Arni","Magnusson",role="aut",
 	   	   comment=c(ORCID="0000-0003-2769-6741")),
 	    person("Hans","Skaug",role="aut"),
@@ -13,7 +13,7 @@ Authors@R: c(person("Arni","Magnusson",role="aut",
 	        comment=c(ORCID="0000-0002-8685-9910")),
             person("Koen","van Bentham",role="aut"),
             person("Ben","Bolker",role=c("aut","cre"),
-	           email="bolker@mcmaster.ca",
+	           email = "bolker@mcmaster.ca",
 	           comment=c(ORCID="0000-0002-2127-0443")),
             person("Nafis","Sadat",role="ctb",
                 comment=c(ORCID="0000-0001-5715-616X")),
@@ -24,7 +24,7 @@ Authors@R: c(person("Arni","Magnusson",role="aut",
 		       comment = c(ORCID = "0000-0001-9851-5077")),
             person("Charles J.","Geyer", role="ctb"),
 	    person("Maeve","McGillycuddy", role="ctb"),
-            person("Mollie","Brooks",role=c("aut"),
+            person("Mollie","Brooks",role="aut",
 		   comment=c(ORCID="0000-0001-6963-8326")))
 Description: Fit linear and generalized linear mixed models with various
     extensions, including zero-inflation. The models are fitted using maximum
@@ -50,7 +50,7 @@ BugReports: https://github.com/glmmTMB/glmmTMB/issues
 RoxygenNote: 7.1.1
 NeedsCompilation: yes
 Encoding: UTF-8
-Packaged: 2021-07-14 00:43:46 UTC; bolker
+Packaged: 2021-07-30 15:09:52 UTC; bolker
 Author: Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Hans Skaug [aut],
   Anders Nielsen [aut] (<https://orcid.org/0000-0001-9683-9262>),
@@ -68,4 +68,4 @@ Author: Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Mollie Brooks [aut] (<https://orcid.org/0000-0001-6963-8326>)
 Maintainer: Ben Bolker <bolker@mcmaster.ca>
 Repository: CRAN
-Date/Publication: 2021-07-20 07:30:04 UTC
+Date/Publication: 2021-09-01 23:00:02 UTC
