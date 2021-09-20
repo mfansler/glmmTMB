@@ -31,14 +31,13 @@ library(MuMIn)
 require(DHARMa, quietly = TRUE) ## may be missing ...
 library(broom)
 library(broom.mixed)
-library(dotwhisker)
+require(dotwhisker, quietly = TRUE)
 library(ggplot2); theme_set(theme_bw())
 library(texreg)
 library(xtable)
 if (huxtable_OK) library(huxtable)
 ## retrieve slow stuff
-L <- load(system.file("vignette_data","model_evaluation.rda",
-                      package="glmmTMB"))
+L <- gt_load("vignette_data/model_evaluation.rda")
 
 ## ----examples,eval=TRUE-------------------------------------------------------
 owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
@@ -47,6 +46,17 @@ owls_nb1 <- glmmTMB(SiblingNegotiation ~ FoodTreatment*SexParent +
                                    SexParent="contr.sum"),
                     family = nbinom1,
                     zi = ~1, data=Owls)
+
+## ----fit_model3,cache=TRUE----------------------------------------------------
+data("cbpp",package="lme4")
+cbpp_b1 <- glmmTMB(incidence/size~period+(1|herd),
+                   weights=size,family=binomial,
+                   data=cbpp)
+## simulated three-term Beta example
+set.seed(1001)
+dd <- data.frame(z=rbeta(1000,shape1=2,shape2=3),
+                 a=rnorm(1000),b=rnorm(1000),c=rnorm(1000))
+simex_b1 <- glmmTMB(z~a*b*c,family=beta_family,data=dd)
 
 ## ----dharma_sim,eval=FALSE,message=FALSE--------------------------------------
 #  owls_nb1_simres <- simulateResiduals(owls_nb1)
@@ -77,6 +87,9 @@ if (effects_ok) {
 
 ## ----emmeans1-----------------------------------------------------------------
 emmeans(owls_nb1, poly ~ FoodTreatment | SexParent)
+
+## ----drop1_eval,cache=TRUE----------------------------------------------------
+system.time(owls_nb1_d1 <- drop1(owls_nb1,test="Chisq"))
 
 ## ----print_drop1--------------------------------------------------------------
 print(owls_nb1_d1)

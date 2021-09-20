@@ -1,6 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 1.1.2.2
+Version: 1.1.2.3
 Authors@R: c(person("Arni","Magnusson",role="aut",
 	   	   comment=c(ORCID="0000-0003-2769-6741")),
 	    person("Hans","Skaug",role="aut"),
@@ -12,9 +12,9 @@ Authors@R: c(person("Arni","Magnusson",role="aut",
             person("Martin","Maechler",role="aut",
 	        comment=c(ORCID="0000-0002-8685-9910")),
             person("Koen","van Bentham",role="aut"),
-            person("Ben","Bolker",role=c("aut","cre"),
-	           email = "bolker@mcmaster.ca",
-	           comment=c(ORCID="0000-0002-2127-0443")),
+            person("Ben","Bolker",role=c("aut"),
+	           comment=c(ORCID="0000-0002-2127-0443"),
+		   email = "bolker@mcmaster.ca"),
             person("Nafis","Sadat",role="ctb",
                 comment=c(ORCID="0000-0001-5715-616X")),
             person("Daniel","Lüdecke", role="ctb",
@@ -24,8 +24,9 @@ Authors@R: c(person("Arni","Magnusson",role="aut",
 		       comment = c(ORCID = "0000-0001-9851-5077")),
             person("Charles J.","Geyer", role="ctb"),
 	    person("Maeve","McGillycuddy", role="ctb"),
-            person("Mollie","Brooks",role="aut",
-		   comment=c(ORCID="0000-0001-6963-8326")))
+            person("Mollie","Brooks",role=c("aut","cre"),
+		   comment=c(ORCID="0000-0001-6963-8326"),
+			 email = "mollieebrooks@gmail.com"))
 Description: Fit linear and generalized linear mixed models with various
     extensions, including zero-inflation. The models are fitted using maximum
     likelihood estimation via 'TMB' (Template Model Builder). Random effects are
@@ -50,7 +51,7 @@ BugReports: https://github.com/glmmTMB/glmmTMB/issues
 RoxygenNote: 7.1.1
 NeedsCompilation: yes
 Encoding: UTF-8
-Packaged: 2021-07-30 15:09:52 UTC; bolker
+Packaged: 2021-09-20 11:06:12 UTC; molbr
 Author: Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Hans Skaug [aut],
   Anders Nielsen [aut] (<https://orcid.org/0000-0001-9683-9262>),
@@ -58,14 +59,14 @@ Author: Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Kasper Kristensen [aut],
   Martin Maechler [aut] (<https://orcid.org/0000-0002-8685-9910>),
   Koen van Bentham [aut],
-  Ben Bolker [aut, cre] (<https://orcid.org/0000-0002-2127-0443>),
+  Ben Bolker [aut] (<https://orcid.org/0000-0002-2127-0443>),
   Nafis Sadat [ctb] (<https://orcid.org/0000-0001-5715-616X>),
   Daniel Lüdecke [ctb] (<https://orcid.org/0000-0002-8895-3206>),
   Russ Lenth [ctb],
   Joseph O'Brien [ctb] (<https://orcid.org/0000-0001-9851-5077>),
   Charles J. Geyer [ctb],
   Maeve McGillycuddy [ctb],
-  Mollie Brooks [aut] (<https://orcid.org/0000-0001-6963-8326>)
-Maintainer: Ben Bolker <bolker@mcmaster.ca>
+  Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>)
+Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-09-01 23:00:02 UTC
+Date/Publication: 2021-09-20 14:40:02 UTC

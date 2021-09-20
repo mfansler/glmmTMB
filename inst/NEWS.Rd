@@ -4,7 +4,35 @@
 \title{glmmTMB News}
 \encoding{UTF-8}
 
-\section{CHANGES IN VERSION 1.1.2.2 (2021-07-29)}{
+\section{CHANGES IN VERSION 1.1.3}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Double-bar notation (\code{(x+y||g)}) is now translated to a
+  diagonal-covariance term (\code{diag(x+y|g)}) rather than being split 
+  into separate random effects terms as in  \code{lme4}. This should not
+  change modeling results, but may change their
+  presentation/ordering/etc.. (This is also a bug fix, as double-bar
+  notation was not working in several previous versions.)
+  \item \code{glmmTMB} now issues a warning when (1) \code{$} is used
+  within formulas or (2) the \code{data} argument is not specified (the
+  latter warning can be suppressed by specifying
+  \code{data=NULL}).
+}
+ }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item New (experimental) function \code{up2date} for updating
+      stored \code{glmmTMB} fits that were created with an earlier
+      version of \code{TMB} than the one used when \code{glmmTMB} was
+      compiled to binary/installed from source
+      \item Utility functions \code{dtruncnbinom1},
+      \code{dtruncnbinom2}, \code{dtruncpoisson} for k-truncated
+      count distributions
+    }
+  }
+}
+  
+\section{CHANGES IN VERSION 1.1.2.2 (2021-09-01)}{
   \itemize{
     \item This is an administrative release (minor revisions for CRAN).
   }

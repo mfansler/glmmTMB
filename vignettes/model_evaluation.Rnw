@@ -118,14 +118,13 @@ library(MuMIn)
 require(DHARMa, quietly = TRUE) ## may be missing ...
 library(broom)
 library(broom.mixed)
-library(dotwhisker)
+require(dotwhisker, quietly = TRUE)
 library(ggplot2); theme_set(theme_bw())
 library(texreg)
 library(xtable)
 if (huxtable_OK) library(huxtable)
 ## retrieve slow stuff
-L <- load(system.file("vignette_data","model_evaluation.rda",
-                      package="glmmTMB"))
+L <- gt_load("vignette_data/model_evaluation.rda")
 @
 
 A couple of example models:

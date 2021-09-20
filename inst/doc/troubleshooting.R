@@ -41,7 +41,7 @@ knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALS
 ## ----fatfiberglmm-------------------------------------------------------------
 #  ## data taken from gamlss.data:plasma, originally
 #  ## http://biostat.mc.vanderbilt.edu/wiki/pub/Main/DataSets/plasma.html
-#  load(system.file("vignette_data","plasma.rda", package="glmmTMB"))
+#  gt_load("vignette_data/plasma.rda")
 #  m4.1 <- glm(calories ~ fat*fiber, family = Gamma(link = "log"), data = plasma)
 #  m4.2 <- glmmTMB(calories ~ fat*fiber, family = Gamma(link = "log"), data = plasma)
 #  ps  <- transform(plasma,fat=scale(fat,center=FALSE),fiber=scale(fiber,center=FALSE))
@@ -58,7 +58,7 @@ knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALS
 #  print(s_vals,digits=3)
 
 ## ----load_ss_ex,eval=TRUE-----------------------------------------------------
-L <- load(system.file("vignette_data","sherman.rda",package="glmmTMB"))
+L <- gt_load("vignette_data/sherman.rda")
 
 ## ----ss_ex_mod1---------------------------------------------------------------
 #  summary(mod1)
