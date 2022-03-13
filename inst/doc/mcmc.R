@@ -91,7 +91,7 @@ L <- load(system.file("vignette_data", "mcmc.rda", package="glmmTMB"))
 #  colnames(m1) <- c(names(fixef(fm1)[[1]]),
 #                    "log(sigma)",
 #                    c("log(sd_Intercept)","log(sd_Days)","cor"))
-#  m1[,"cor"] <- sapply(m1[,"cor"],get_cor)
+#  m1[,"cor"] <- sapply(m1[,"cor"], get_cor)
 
 ## ----traceplot,fig.width=7----------------------------------------------------
 #  xyplot(m1,layout=c(2,3),asp="fill")

@@ -7,6 +7,32 @@
 \section{CHANGES IN VERSION 1.1.3}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
+      \item minor improvements in \code{diagnose()}
+      }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item offset variables with attributes now work properly
+      (previously threw an error; now stripped before being passed to
+      TMB)
+      \item \code{emmeans} methods now work when \code{component}
+      is non-default (GH #780, @rvlenth/@marosteg)
+      \item \code{vcov(., full = TRUE)} is now named for models with
+      multiple variance components
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item implemented working residuals (\code{residuals(., type =
+	"working")}; GH #776, @lionel68)
+      \item new option \code{print_trivial} for the \code{print} method
+      for fixed effects (\code{fixef} objects); contributed by @d-morrison
+    }
+  }
+}
+\section{CHANGES IN VERSION 1.1.2.3 (2021-09-20)}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
       \item Double-bar notation (\code{(x+y||g)}) is now translated to a
   diagonal-covariance term (\code{diag(x+y|g)}) rather than being split 
   into separate random effects terms as in  \code{lme4}. This should not
