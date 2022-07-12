@@ -9,6 +9,7 @@
   newdata = NULL,
   newparams = NULL,
   se.fit = FALSE,
+  cov.fit = FALSE,
   re.form = NULL,
   allow.new.levels = FALSE,
   type = c("link", "response", "conditional", "zprob", "zlink", "disp"),
@@ -28,6 +29,8 @@
 
 \item{se.fit}{return the standard errors of the predicted values?}
 
+\item{cov.fit}{return the covariance matrix of the predicted values?}
+
 \item{re.form}{\code{NULL} to specify individual-level predictions; \code{~0} or \code{NA} to specify population-level predictions (i.e., setting all random effects to zero)}
 
 \item{allow.new.levels}{allow previously unobserved levels in random-effects variables? see details.}
@@ -42,10 +45,9 @@ or equivalently the linear predictor of the conditional model}
 and \code{mu} otherwise}
 \item{"conditional"}{mean of the conditional response; \code{mu} for all models
 (i.e., synonymous with \code{"response"} in the absence of zero-inflation}
-\item{"zprob"}{the probability of a structural zero (gives an error
-for non-zero-inflated models)}
+\item{"zprob"}{the probability of a structural zero (returns 0 for non-zero-inflated models)}
 \item{"zlink"}{predicted zero-inflation probability on the scale of
-the logit link function}
+the logit link function (returns \code{-Inf} for non-zero-inflated models)}
 \item{"disp"}{dispersion parameter however it is defined for that particular family as described in  \code{\link{sigma.glmmTMB}}}
 }}
 

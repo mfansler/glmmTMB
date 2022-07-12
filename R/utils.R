@@ -47,7 +47,7 @@ parallel_default <- function(parallel=c("no","multicore","snow"),ncpus=1) {
 ##' translate vector of correlation parameters to correlation values
 ##' @param theta vector of internal correlation parameters (elements of scaled Cholesky factor, in \emph{row-major} order)
 ##' @return a vector of correlation values
-##' @details This function follows the definition at \url{http://kaskr.github.io/adcomp/classUNSTRUCTURED__CORR__t.html}:
+##' @details This function follows the definition at \url{http://kaskr.github.io/adcomp/classdensity_1_1UNSTRUCTURED__CORR__t.html}:
 ##' if \eqn{L} is the lower-triangular matrix with 1 on the diagonal and the correlation parameters in the lower triangle, then the correlation matrix is defined as \eqn{\Sigma = D^{-1/2} L L^\top D^{-1/2}}{Sigma = sqrt(D) L L' sqrt(D)}, where \eqn{D = \textrm{diag}(L L^\top)}{D = diag(L L')}. For a single correlation parameter \eqn{\theta_0}{theta0}, this works out to \eqn{\rho = \theta_0/\sqrt{1+\theta_0^2}}{rho = theta0/sqrt(1+theta0^2)}. The function returns the elements of the lower triangle of the correlation matrix, in column-major order.
 ##' @examples
 ##' th0 <- 0.5
@@ -107,15 +107,27 @@ hasRandom <- function(x) {
     return(length(unlist(pl[grep("^theta",names(pl))]))>0)
 }
 
-## retrieve parameters by name or index
-getParms <- function(parm=NULL, object, full=FALSE) {
-    vv <- vcov(object, full=TRUE)
+##' retrieve parameters by name or index
+##' @param parm parameter specifier
+##' @param object fitted glmmTMB object
+##' @param full include simple dispersion parameter?
+##' @param include_mapped include mapped parameter indices?
+##' @noRd
+getParms <- function(parm=NULL, object, full=FALSE, include_mapped = FALSE) {
+    vv <- vcov(object, full=TRUE, include_mapped = include_mapped)
     sds <- sqrt(diag(vv))
     pnames <- names(sds) <- rownames(vv)       ## parameter names (user-facing)
-    intnames <- names(object$obj$env$last.par) ## internal names
+    ee <- object$obj$env
+
     ## don't use object$obj$env$random; we want to keep "beta" vals, which may be
     ## counted as "random" if using REML
-    intnames <- intnames[!intnames %in% c("b","bzi")]
+    drop_rand <- function(x) x[!x %in% c("b", "bzi")]
+    if (!include_mapped) {
+        intnames <- drop_rand(names(ee$last.par))
+    } else {
+        pl <- ee$parList()
+        intnames <- drop_rand(rep(names(pl), lengths(pl)))
+    }
     if (length(pnames) != length(sds)) { ## shouldn't happen ...
         stop("length mismatch between internal and external parameter names")
     }
@@ -214,19 +226,29 @@ nullSparseMatrix <- function() {
     }
 }
 
-## Check for version mismatch in dependent binary packages
+#' Check for version mismatch in dependent binary packages
+#' @param dep_pkg upstream package
+#' @param this_pkg downstream package
+#' @param write_file (logical) write version file and quit?
+#' @param warn give warning?
+#' @return logical: TRUE if the binary versions match
 #' @importFrom utils packageVersion
-checkDepPackageVersion <- function(dep_pkg="TMB",this_pkg="glmmTMB",write_file=FALSE) {
+#' @export
+checkDepPackageVersion <- function(dep_pkg = "TMB",
+                                   this_pkg = "glmmTMB",
+                                   write_file = FALSE,
+                                   warn = TRUE) {
     cur_dep_version <- as.character(packageVersion(dep_pkg))
-    fn <- sprintf("%s-version",dep_pkg)
+    fn <- sprintf("%s-version", dep_pkg)
     if (write_file) {
-        cat(sprintf("current %s version=%s: writing file\n",dep_pkg,cur_dep_version))
+        cat(sprintf("current %s version=%s: writing file\n", dep_pkg, cur_dep_version))
         writeLines(cur_dep_version, con = fn)
         return(cur_dep_version)
     }
-    fn <- system.file(fn,package=this_pkg)
+    fn <- system.file(fn, package=this_pkg)
     built_dep_version <- scan(file=fn, what=character(), quiet=TRUE)
-    if(!identical(built_dep_version, cur_dep_version)) {
+    result_ok <- identical(built_dep_version, cur_dep_version)
+    if(warn && !result_ok) {
         warning(
             "Package version inconsistency detected.\n",
             sprintf("%s was built with %s version %s",
@@ -240,6 +262,7 @@ checkDepPackageVersion <- function(dep_pkg="TMB",this_pkg="glmmTMB",write_file=F
             sQuote(dep_pkg), " package (see '?reinstalling' for more information)"
         )
     }
+    return(result_ok)
 }
 
 #' @name reinstalling
@@ -410,4 +433,68 @@ dtruncated_nbinom1 <- function(x, phi, mu, k=0, log=FALSE) {
                 pnbinom(k, mu=mu, size=size, lower.tail=FALSE,
                         log.p=TRUE))
     if (log) return(y) else return(exp(y))
+}
+
+
+## utilities for constructing lists of parameter names
+
+## for matching map names vs nameList components ...
+par_components <- c("beta","betazi","betad","theta","thetazi","thetaf")
+
+getAllParnames <- function(object, full) {
+                           
+  mkNames <- function(tag) {
+      X <- getME(object,paste0("X",tag))
+      if (trivialFixef(nn <- colnames(X),tag)
+          ## if 'full', keep disp even if trivial, if used by family
+          && !(full && tag =="d" &&
+               (usesDispersion(family(object)$family) && !zeroDisp(object)))) {
+          return(character(0))
+      }
+      return(paste(tag,nn,sep="~"))
+  }
+
+  nameList <- setNames(list(colnames(getME(object,"X")),
+                       mkNames("zi"),
+                       mkNames("d")),
+                names(cNames))
+
+  if(full) {
+      ## FIXME: haven't really decided if we should drop the
+      ##   trivial variance-covariance dispersion parameter ??
+      ## if (trivialDisp(object))
+      ##    res <- covF[-nrow(covF),-nrow(covF)]
+
+      reNames <- function(tag) {
+        re <- object$modelInfo$reStruc[[paste0(tag,"ReStruc")]]
+        num_theta <- vapply(re,"[[","blockNumTheta", FUN.VALUE = numeric(1))
+        nn <- mapply(function(n,L) paste(n, seq(L), sep="."),
+                     names(re), num_theta)
+        if (length(nn) == 0) return(nn)
+        return(paste("theta",gsub(" ", "", unlist(nn)), sep="_"))
+      }
+      ## nameList for estimated variables;
+      nameList <- c(nameList,list(theta=reNames("cond"),thetazi=reNames("zi")))
+  }
+
+    return(nameList)
+}
+
+
+getEstParnames <- function(object, full) {
+    nameList <- getAllParnames(object, full)
+    map <- object$obj$env$map
+    if (length(map)>0) {
+        ## fullNameList for all variables, including mapped vars
+        ## (nameList will get reduced shortly)
+        for (m in seq_along(map)) {
+            if (length(NAmap <- which(is.na(map[[m]])))>0) {
+                w <- match(names(map)[m],par_components) ##
+                if (length(nameList)>=w) { ## may not exist if !full
+                    nameList[[w]] <- nameList[[w]][-NAmap]
+                }
+            }
+        }
+    }
+    return(nameList)
 }

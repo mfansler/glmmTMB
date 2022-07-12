@@ -12,7 +12,7 @@
 
 <meta name="author" content="Kasper Kristensen and Maeve McGillycuddy" />
 
-<meta name="date" content="2022-03-13" />
+<meta name="date" content="2022-07-11" />
 
 <title>Covariance structures with glmmTMB</title>
 
@@ -112,7 +112,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Covariance structures with glmmTMB</h1>
 <h4 class="author">Kasper Kristensen and Maeve McGillycuddy</h4>
-<h4 class="date">2022-03-13</h4>
+<h4 class="date">2022-07-11</h4>
 
 
 
@@ -429,7 +429,8 @@ newdata</code></pre></div>
 <p>For various advanced purposes, such as computing likelihood profiles, it is useful to know the details of the parameterization of the models - the scale on which the parameters are defined (e.g. standard deviation, variance, or log-standard deviation for variance parameters) and their order.</p>
 <div id="unstructured" class="section level3">
 <h3>Unstructured</h3>
-<p>For an unstructured matrix of size <code>n</code>, parameters <code>1:n</code> represent the log-standard deviations while the remaining <code>n(n-1)/2</code> (i.e. <code>(n+1):(n:(n*(n+1)/2))</code>) are the elements of the <em>scaled</em> Cholesky factor of the correlation matrix, filled in row-wise order (see <a href="http://kaskr.github.io/adcomp/classUNSTRUCTURED__CORR__t.html">TMB documentation</a>). In particular, if <span class="math inline">\(L\)</span> is the lower-triangular matrix with 1 on the diagonal and the correlation parameters in the lower triangle, then the correlation matrix is defined as <span class="math inline">\(\Sigma = D^{-1/2} L L^\top D^{-1/2}\)</span>, where <span class="math inline">\(D = \textrm{diag}(L L^\top)\)</span>. For a single correlation parameter <span class="math inline">\(\theta_0\)</span>, this works out to <span class="math inline">\(\rho = \theta_0/(1+\theta_0^2)\)</span>.</p>
+<p>For an unstructured matrix of size <code>n</code>, parameters <code>1:n</code> represent the log-standard deviations while the remaining <code>n(n-1)/2</code> (i.e. <code>(n+1):(n:(n*(n+1)/2))</code>) are the elements of the <em>scaled</em> Cholesky factor of the correlation matrix, filled in row-wise order (see <a href="http://kaskr.github.io/adcomp/classdensity_1_1UNSTRUCTURED__CORR__t.html">TMB documentation</a>). In particular, if <span class="math inline">\(L\)</span> is the lower-triangular matrix with 1 on the diagonal and the correlation parameters in the lower triangle, then the correlation matrix is defined as <span class="math inline">\(\Sigma = D^{-1/2} L L^\top D^{-1/2}\)</span>, where <span class="math inline">\(D = \textrm{diag}(L L^\top)\)</span>. For a single correlation parameter <span class="math inline">\(\theta_0\)</span>, this works out to <span class="math inline">\(\rho = \theta_0/\sqrt{1+\theta_0^2}\)</span>.</p>
+<p>(See calculations <a href="https://github.com/glmmTMB/glmmTMB/blob/master/misc/glmmTMB_corcalcs.ipynb">here</a>.)</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">vv0 &lt;-<span class="st"> </span><span class="kw">VarCorr</span>(fit.us)
 vv1 &lt;-<span class="st"> </span>vv0<span class="op">$</span>cond<span class="op">$</span>group          ## extract 'naked' V-C matrix
 n &lt;-<span class="st"> </span><span class="kw">nrow</span>(vv1)

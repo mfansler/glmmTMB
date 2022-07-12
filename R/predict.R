@@ -61,6 +61,7 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE) 
 ##' @param newdata new data for prediction
 ##' @param newparams new parameters for prediction
 ##' @param se.fit return the standard errors of the predicted values?
+##' @param cov.fit return the covariance matrix of the predicted values?                        
 ##' @param zitype deprecated: formerly used to specify type of zero-inflation probability. Now synonymous with \code{type}
 ##' @param type Denoting \eqn{mu} as the mean of the conditional distribution and
 ##' \code{p} as the zero-inflation probability,
@@ -72,10 +73,9 @@ assertIdenticalModels <- function(data.tmb1, data.tmb0, allow.new.levels=FALSE) 
 ##' and \code{mu} otherwise}
 ##' \item{"conditional"}{mean of the conditional response; \code{mu} for all models
 ##' (i.e., synonymous with \code{"response"} in the absence of zero-inflation}
-##' \item{"zprob"}{the probability of a structural zero (gives an error
-##' for non-zero-inflated models)}
+##' \item{"zprob"}{the probability of a structural zero (returns 0 for non-zero-inflated models)}
 ##' \item{"zlink"}{predicted zero-inflation probability on the scale of
-##' the logit link function}
+##' the logit link function (returns \code{-Inf} for non-zero-inflated models)}
 ##' \item{"disp"}{dispersion parameter however it is defined for that particular family as described in  \code{\link{sigma.glmmTMB}}}
 ##' }
 ##' @param na.action how to handle missing values in \code{newdata} (see \code{\link{na.action}});
@@ -114,9 +114,10 @@ predict.glmmTMB <- function(object,
                             newdata=NULL,
                             newparams=NULL,
                             se.fit=FALSE,
+                            cov.fit=FALSE,
                             re.form=NULL, allow.new.levels=FALSE,
                             type = c("link", "response",
-                                     "conditional","zprob","zlink",
+                                     "conditional", "zprob", "zlink",
                                      "disp"),
                             zitype = NULL,
                             na.action = na.pass,
@@ -124,6 +125,11 @@ predict.glmmTMB <- function(object,
                             debug=FALSE,
                             ...) {
   ## FIXME: add re.form
+    
+  if (cov.fit) {
+      if (!se.fit) message("se.fit set to TRUE because cov.fit = TRUE")
+      se.fit <- TRUE
+  }
 
   if (!is.null(zitype)) {
      warning("zitype is deprecated: please use type instead")
@@ -147,7 +153,7 @@ predict.glmmTMB <- function(object,
                      conditional= "uncorrected",
                      zlink      = ,
                      zprob      = "prob",
-                     disp       = "disp",#zi irrelevant; just reusing variable
+                     disp       = "disp", #zi irrelevant; just reusing variable
                      stop("unknown type ",type))
   ziPredCode <- .valid_zipredictcode[ziPredNm]
 
@@ -166,11 +172,30 @@ predict.glmmTMB <- function(object,
   ## 0 = no pred; 1 = response scale; 2 = link scale
   do_pred_val <- if (!se.fit) 0 else if (!grepl("link",type)) 1 else 2
 
+  na.act <- attr(model.frame(object),"na.action")
+  do.napred <- missing(newdata) && !is.null(na.act)
+
+  ## DRY: there is a little bit of repeated code here but didn't
+  ## want to make a giant if-block
+  ## ('goto' would be handy here ...)
+  if (noZI(object) && type %in% c("zprob", "zlink")) {
+    dd <- if (!is.null(newdata)) newdata else object$obj$env$data$Xd
+    pred <- se <- setNames(numeric(nrow(dd)), rownames(dd))
+    se[] <- NA_real_
+    pred[] <- if (type == "zprob") 0 else -Inf
+    if (do.napred) {
+      pred <- napredict(na.act, pred)
+      if (se.fit) se <- napredict(na.act,se)
+    }
+    if (cov.fit) covfit <- matrix(NA_real_, nrow = length(se.fit), ncol = length(se.fit), dimnames = list(names(se.fit), names(se.fit)))
+    if (!se.fit) return(pred) else if (cov.fit) return(list(fit=pred, se.fit=se, cov.fit = covfit)) else return(list(fit=pred, se.fit=se))
+  }
+
   if (fast) {
     ee <- environment(object$obj$fn)
     lp <- ee$last.par.best                 ## used in $report() call below
     dd <- ee$data         ## data object
-    orig_vals <- dd[c("whichPredict","doPredict","ziPredictCode")]
+    orig_vals <- dd[c("whichPredict", "doPredict", "ziPredictCode")]
     dd$whichPredict <- as.numeric(seq(nobs(object)))  ## replace 'whichPredict' entry
     if (se.fit) {
       dd$doPredict <- do_pred_val
@@ -331,7 +356,7 @@ predict.glmmTMB <- function(object,
                              any(!is.finite(Zzi@x)) |
                              any(!is.finite(Xd))
     ) stop("Some variables in newdata needed for predictions contain NAs or NaNs.
-           This is currently incompatible with se.fit=TRUE."))
+           This is currently incompatible with se.fit=TRUE or cov.fit=TRUE."))
   }
 
   ## FIXME: what if newparams only has a subset of components?
@@ -369,9 +394,6 @@ predict.glmmTMB <- function(object,
 
   }  ## NOT fast
 
-  na.act <- attr(model.frame(object),"na.action")
-  do.napred <- missing(newdata) && !is.null(na.act)
-
   ## set TMB threads to value from original model fit/reset on exit
   if (!is.null(parallel <- object$modelInfo$parallel)) {
     n_orig <- openmp(NULL)
@@ -390,7 +412,10 @@ predict.glmmTMB <- function(object,
     ## FIXME: Eventually add 'getReportCovariance=FALSE' to this sdreport
     ##        call to fix memory issue (requires recent TMB version)
     ## Fixed! (but do we want a flag to get it ? ...)
-    sdr <- sdreport(newObj,oldPar,hessian.fixed=H,getReportCovariance=FALSE)
+    if (cov.fit) {
+        sdr <- sdreport(newObj,oldPar,hessian.fixed=H,getReportCovariance=TRUE)
+        covfit <- sdr$cov
+    } else sdr <- sdreport(newObj,oldPar,hessian.fixed=H,getReportCovariance=FALSE)
     sdrsum <- summary(sdr, "report") ## TMB:::summary.sdreport(sdr, "report")
     w <- if (return_eta) "eta_predict" else "mu_predict"
     ## multiple rows with identical names; naive indexing
@@ -398,10 +423,16 @@ predict.glmmTMB <- function(object,
     w <- which(rownames(sdrsum)==w)
     pred <- sdrsum[w,"Estimate"]
     se <- sdrsum[w,"Std. Error"]
+    if (cov.fit) covfit <- covfit[w, w]
   }
   if (do.napred) {
       pred <- napredict(na.act,pred)
       if (se.fit) se <- napredict(na.act,se)
+      if (cov.fit) {
+          tmp <- covfit
+          covfit <- matrix(NA_real_, nrow = length(se.fit), ncol = length(se.fit), dimnames = list(names(se.fit), names(se.fit)))
+          covfit[!is.na(covfit)] <- as.vector(tmp)
+      }
   }
-  if (!se.fit) return(pred) else return(list(fit=pred,se.fit=se))
+  if (!se.fit) return(pred) else if (cov.fit) return(list(fit=pred, se.fit=se, cov.fit = covfit)) else return(list(fit=pred, se.fit=se))
 }
