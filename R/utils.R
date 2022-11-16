@@ -64,44 +64,6 @@ get_cor <- function(theta) {
   R[lower.tri(R)]
 }
 
-match_which <- function(x,y) {
-    which(sapply(y,function(z) x %in% z))
-}
-
-## reassign predvars to have term vars in the right order,
-##  but with 'predvars' values inserted where appropriate
-fix_predvars <- function(pv,tt) {
-    if (length(tt)==3) {
-        ## convert two-sided to one-sided formula
-        tt <- RHSForm(tt, as.form=TRUE)
-    }
-    ## ugh, deparsing again ...
-    tt_vars <- vapply(attr(tt, "variables"), deparse1, character(1))[-1]
-    ## remove terminal paren - e.g. match term poly(x, 2) to
-    ##   predvar poly(x, 2, <stuff>)
-    ## beginning of string, including open-paren, colon
-    ##  but not *first* comma nor arg ...
-    ##  could possibly try init_regexp <- "^([^,]+).*" ?
-    init_regexp <- "^([(^:_.[:alnum:]]+).*"
-    tt_vars_short <- gsub(init_regexp,"\\1",tt_vars)
-    if (is.null(pv) || length(tt_vars)==0) return(NULL)
-    new_pv <- quote(list())
-    ## maybe multiple variables per pv term ... [-1] ignores head
-    ## FIXME: test for really long predvar strings ????
-    pv_strings <- vapply(pv,deparse1,FUN.VALUE=character(1))[-1]
-    pv_strings <- gsub(init_regexp,"\\1",pv_strings)
-    for (i in seq_along(tt_vars)) {
-        w <- match(tt_vars_short[[i]],pv_strings)
-        if (!is.na(w)) {
-            new_pv[[i+1]] <- pv[[w+1]]
-        } else {
-            ## insert symbol from term vars
-            new_pv[[i+1]] <- as.symbol(tt_vars[[i]])
-        }
-    }
-    return(new_pv)
-}
-
 hasRandom <- function(x) {
     pl <- getParList(x)
     return(length(unlist(pl[grep("^theta",names(pl))]))>0)
@@ -355,18 +317,36 @@ isNullPointer <- function(x) {
 up2date <- function(oldfit) {
   openmp(1)  ## non-parallel/make sure NOT grabbing all the threads!
   if (isNullPointer(oldfit$obj$env$ADFun$ptr)) {
-    obj <- oldfit$obj
-    oldfit$obj <- with(obj$env,
+      obj <- oldfit$obj
+      ee <- obj$env
+      if ("thetaf" %in% names(ee$parameters)) {
+          ee$parameters$psi <- ee$parameters$thetaf
+          ee$parameters$thetaf <- NULL
+          pars <- c(grep("last\\.par", names(ee), value = TRUE),
+                    "par")
+          for (p in pars) {
+              if (!is.null(nm <- names(ee[[p]]))) {
+                  names(ee[[p]])[nm == "thetaf"] <- "psi"
+              }
+          }
+      }
+      ee2 <- oldfit$sdr$env
+      if ("thetaf" %in% names(ee2$parameters)) {
+          ee2$parameters$psi <- ee2$parameters$thetaf
+          ee2$parameters$thetaf <- NULL
+      }
+      oldfit$obj <- with(ee,
                        TMB::MakeADFun(data,
                                       parameters,
                                       map = map,
                                       random = random,
                                       silent = silent,
                                       DLL = "glmmTMB"))
-    oldfit$obj$env$last.par.best <- obj$env$last.par.best
+      oldfit$obj$env$last.par.best <- ee$last.par.best
   }
   return(oldfit)
 }
+
 
 
 #' Load data from system file, updating glmmTMB objects
@@ -439,7 +419,7 @@ dtruncated_nbinom1 <- function(x, phi, mu, k=0, log=FALSE) {
 ## utilities for constructing lists of parameter names
 
 ## for matching map names vs nameList components ...
-par_components <- c("beta","betazi","betad","theta","thetazi","thetaf")
+par_components <- c("beta","betazi","betad","theta","thetazi","psi")
 
 getAllParnames <- function(object, full) {
                            
@@ -474,7 +454,14 @@ getAllParnames <- function(object, full) {
         return(paste("theta",gsub(" ", "", unlist(nn)), sep="_"))
       }
       ## nameList for estimated variables;
-      nameList <- c(nameList,list(theta=reNames("cond"),thetazi=reNames("zi")))
+      nameList <- c(nameList,
+                    list(theta = reNames("cond"), thetazi = reNames("zi")))
+
+      ##
+      if (length(fp <- family_params(object)) > 0) {
+          nameList <- c(nameList, list(psi = names(fp)))
+      }
+      
   }
 
     return(nameList)
@@ -497,4 +484,40 @@ getEstParnames <- function(object, full) {
         }
     }
     return(nameList)
+}
+
+## OBSOLETE: delete eventually
+
+## reassign predvars to have term vars in the right order,
+##  but with 'predvars' values inserted where appropriate
+fix_predvars <- function(pv,tt) {
+    if (length(tt)==3) {
+        ## convert two-sided to one-sided formula
+        tt <- RHSForm(tt, as.form=TRUE)
+    }
+    ## ugh, deparsing again ...
+    tt_vars <- vapply(attr(tt, "variables"), deparse1, character(1))[-1]
+    ## remove terminal paren - e.g. match term poly(x, 2) to
+    ##   predvar poly(x, 2, <stuff>)
+    ## beginning of string, including open-paren, colon
+    ##  but not *first* comma nor arg ...
+    ##  could possibly try init_regexp <- "^([^,]+).*" ?
+    init_regexp <- "^([(^:_.[:alnum:]]+).*"
+    tt_vars_short <- gsub(init_regexp,"\\1",tt_vars)
+    if (is.null(pv) || length(tt_vars)==0) return(NULL)
+    new_pv <- quote(list())
+    ## maybe multiple variables per pv term ... [-1] ignores head
+    ## FIXME: test for really long predvar strings ????
+    pv_strings <- vapply(pv,deparse1,FUN.VALUE=character(1))[-1]
+    pv_strings <- gsub(init_regexp,"\\1",pv_strings)
+    for (i in seq_along(tt_vars)) {
+        w <- match(tt_vars_short[[i]],pv_strings)
+        if (!is.na(w)) {
+            new_pv[[i+1]] <- pv[[w+1]]
+        } else {
+            ## insert symbol from term vars
+            new_pv[[i+1]] <- as.symbol(tt_vars[[i]])
+        }
+    }
+    return(new_pv)
 }

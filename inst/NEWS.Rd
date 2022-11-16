@@ -4,7 +4,61 @@
 \title{glmmTMB News}
 \encoding{UTF-8}
 
-\section{CHANGES IN VERSION 1.1.4}{
+\section{CHANGES IN VERSION 1.1.5}{
+    \subsection{BUG FIXES}{
+      \itemize{
+	\item improve predict-handling of complex bases (GH #632, #845,
+	#853)
+	\item all standard deviations are now printed in output for
+	models using \code{cs()} (GH #851)
+	\item corrected conditional and response predictions for
+	truncated distributions (GH #634, #860, #873)
+	\item \code{ranef()} now works correctly for families
+	with extra parameters (Tweedie etc.) (GH #870)
+      } % itemize
+    } % bug fixes
+    \subsection{USER-VISIBLE CHANGES}{
+      \itemize{
+	\item glmmTMB now stops if fixed-effect model matrices are
+	rank deficient (i.e., perfectly collinear predictors); this
+	can be changed to a warning via
+	\code{glmmTMBControl(rank_check="skip") (Daniel B. Stouffer)}
+	\item the vector of "extra" family parameters
+	(Tweedie power, Student-t df,
+	etc.) has been renamed from "thetaf" to "psi"; \code{start}
+	and \code{map} arguments that set this parameter will need to
+	be changed. Users will need to run \code{up2date()}
+	when loading stored model objects from previous versions of the
+	package.
+	\item \code{predict} now warns if extra (ignored) arguments are
+	provided in \code{...}
+      } % itemize
+    } % user-visible changes
+    \subsection{NEW FEATURES}{
+      \itemize{
+	\item Student-t response distribution is now implemented (see
+	\code{\link{t_family}})
+	\item ordered beta regression as in Kubinec (2022), for
+	proportion data containing exact 0 and 1 values, is now
+	implemented (\code{\link{ordbeta}})
+	\item \code{glmmTMBControl} now has a \code{conv_check} argument
+	that allows suppressing convergence warnings
+	(the intended use is when these warnings are irrelevant,
+	e.g. when running small examples for testing purposes)
+    } % itemize
+  } % new features
+} % version 1.1.5
+  
+\section{CHANGES IN VERSION 1.1.4 (2022-07-12)}{
+  \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item row names of \code{confint} output for random effects
+      parameters have changed (new format is
+      \code{Std.Dev} . (term) | (grouping variable) for standard
+      deviations, \code{Cor} . (term1) . (term2) | (grouping variable)
+      for correlations)
+    } % itemize
+  } % user-visible changes
   \subsection{BUG FIXES}{
     \itemize{
       \item \code{predict(., "zprob")} now returns 0 and
@@ -14,13 +68,17 @@
       conditional values]
       \item bug fixes and other improvements for \code{diagnose} (inverted Z-score; now handles
       models without random effects)
+      \item \code{confint} now works for models with more than one
+      random effect
+      \item \code{confint} works better (although not completely) for
+  models with mapped parameters
     } % itemize
   } % bug fixes
   \subsection{NEW FEATURES}{
     \itemize{
       \item now provides Pearson residuals for zero-inflated and
       variable-dispersion models (Brenton Wiernik)
-    }
+    } % itemize
   } % new features
 } % version 1.1.4
 

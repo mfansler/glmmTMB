@@ -1,6 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 1.1.4
+Version: 1.1.5
 Authors@R: c(person("Mollie","Brooks",
 		comment=c(ORCID="0000-0001-6963-8326"),
 		role = c("aut", "cre"),
@@ -30,7 +30,9 @@ Authors@R: c(person("Mollie","Brooks",
 	person("Mikael","Jagan", role="ctb",
 		comment = c(ORCID = "0000-0002-3542-2938")),
 	person("Brenton", "Wiernik", role="ctb",
-		comment = c(ORCID = "0000-0001-9560-6336"))
+		comment = c(ORCID = "0000-0001-9560-6336")),
+	person("Daniel B.", "Stouffer", role="ctb",
+		comment = c(ORCID = "0000-0001-9436-9674"))
 	)
 Description: Fit linear and generalized linear mixed models with various
     extensions, including zero-inflation. The models are fitted using maximum
@@ -47,7 +49,7 @@ Suggests: knitr, rmarkdown, testthat, MASS, lattice, ggplot2 (>=
         2.2.1), mlmRev, bbmle (>= 1.0.19), pscl, coda, reshape2, car
         (>= 3.0.6), emmeans (>= 1.4), estimability, DHARMa, multcomp,
         MuMIn, effects (>= 4.0-1), dotwhisker, broom, broom.mixed,
-        plyr, png, boot, texreg, xtable, huxtable, mvabund
+        plyr, png, boot, texreg, xtable, huxtable, mvabund, parallel
 SystemRequirements: GNU make
 VignetteBuilder: knitr, rmarkdown
 URL: https://github.com/glmmTMB/glmmTMB
@@ -55,8 +57,8 @@ LazyData: TRUE
 BugReports: https://github.com/glmmTMB/glmmTMB/issues
 NeedsCompilation: yes
 Encoding: UTF-8
-RoxygenNote: 7.2.0
-Packaged: 2022-07-11 10:01:41 UTC; molliebrooks
+RoxygenNote: 7.2.2
+Packaged: 2022-11-16 10:26:44 UTC; molliebrooks
 Author: Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>),
   Ben Bolker [aut] (<https://orcid.org/0000-0002-2127-0443>),
   Kasper Kristensen [aut],
@@ -73,7 +75,8 @@ Author: Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>),
   Joseph O'Brien [ctb] (<https://orcid.org/0000-0001-9851-5077>),
   Charles J. Geyer [ctb],
   Mikael Jagan [ctb] (<https://orcid.org/0000-0002-3542-2938>),
-  Brenton Wiernik [ctb] (<https://orcid.org/0000-0001-9560-6336>)
+  Brenton Wiernik [ctb] (<https://orcid.org/0000-0001-9560-6336>),
+  Daniel B. Stouffer [ctb] (<https://orcid.org/0000-0001-9436-9674>)
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Repository: CRAN
-Date/Publication: 2022-07-12 11:00:02 UTC
+Date/Publication: 2022-11-16 22:40:02 UTC
