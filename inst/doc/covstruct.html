@@ -12,7 +12,7 @@
 
 <meta name="author" content="Kasper Kristensen and Maeve McGillycuddy" />
 
-<meta name="date" content="2022-11-16" />
+<meta name="date" content="2023-03-19" />
 
 <title>Covariance structures with glmmTMB</title>
 
@@ -112,7 +112,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Covariance structures with glmmTMB</h1>
 <h4 class="author">Kasper Kristensen and Maeve McGillycuddy</h4>
-<h4 class="date">2022-11-16</h4>
+<h4 class="date">2023-03-19</h4>
 
 
 
@@ -230,23 +230,23 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 </tr>
 <tr class="even">
 <td>One-step correlation</td>
-<td><span class="math inline">\(e^{-\theta}\)</span></td>
+<td><span class="math inline">\(\phi\)</span></td>
 <td>0.7</td>
 </tr>
 </tbody>
 </table>
 <p>The following R-code draws a simulation based on these parameter values. For illustration purposes we consider a very short time series.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">n &lt;-<span class="st"> </span><span class="dv">6</span>                                              ## Number of time points
-x &lt;-<span class="st"> </span><span class="kw">mvrnorm</span>(<span class="dt">mu =</span> <span class="kw">rep</span>(<span class="dv">0</span>,n),
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">n &lt;-<span class="st"> </span><span class="dv">25</span>                                              ## Number of time points
+x &lt;-<span class="st"> </span>MASS<span class="op">::</span><span class="kw">mvrnorm</span>(<span class="dt">mu =</span> <span class="kw">rep</span>(<span class="dv">0</span>,n),
              <span class="dt">Sigma =</span> .<span class="dv">7</span> <span class="op">^</span><span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">dist</span>(<span class="dv">1</span><span class="op">:</span>n)) )    ## Simulate the process using the MASS package
 y &lt;-<span class="st"> </span>x <span class="op">+</span><span class="st"> </span><span class="kw">rnorm</span>(n)                                   ## Add measurement noise</code></pre></div>
 <p>In order to fit the model with <code>glmmTMB</code> we must first specify a time variable as a <em>factor</em>. The factor <em>levels</em> correspond to unit spaced time points. It is a common mistake to forget some factor levels due to missing data or to order the levels incorrectly. We therefore recommend to construct factors with explicit levels, using the <code>levels</code> argument to the <code>factor</code> function:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">times &lt;-<span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span><span class="op">:</span>n, <span class="dt">levels=</span><span class="dv">1</span><span class="op">:</span>n)
-<span class="kw">levels</span>(times)</code></pre></div>
+<span class="kw">head</span>(<span class="kw">levels</span>(times))</code></pre></div>
 <p>We also need a grouping variable. In the current case there is only one time-series so the grouping is:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">group &lt;-<span class="st"> </span><span class="kw">factor</span>(<span class="kw">rep</span>(<span class="dv">1</span>,n))</code></pre></div>
 <p>We combine the data into a single data frame (not absolutely required, but good practice):</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dat0 &lt;-<span class="st"> </span><span class="kw">data.frame</span>(y,times,group)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dat0 &lt;-<span class="st"> </span><span class="kw">data.frame</span>(y, times, group)</code></pre></div>
 <p>Now fit the model using</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">glmmTMB</span>(y <span class="op">~</span><span class="st"> </span><span class="kw">ar1</span>(times <span class="op">+</span><span class="st"> </span><span class="dv">0</span> <span class="op">|</span><span class="st"> </span>group), <span class="dt">data=</span>dat0)</code></pre></div>
 <p>This formula notation follows that of the <code>lme4</code> package.</p>
@@ -255,16 +255,14 @@ y &lt;-<span class="st"> </span>x <span class="op">+</span><span class="st"> </s
 <li>The distribution of <span class="math inline">\(u\)</span> is <code>ar1</code> (this is the only <code>glmmTMB</code> specific part of the formula).</li>
 <li>The right hand side of the bar splits the above specification independently among groups. Each group has its own separate <span class="math inline">\(u\)</span> vector but shares the same parameters for the covariance structure.</li>
 </ul>
-<p>After running the model, we find the parameter estimates <span class="math inline">\(\mu\)</span> (intercept), <span class="math inline">\(\sigma_0^2\)</span> (dispersion), <span class="math inline">\(\sigma\)</span> (Std. Dev.) and <span class="math inline">\(e^{-\theta}\)</span> (First off-diagonal of &quot;Corr&quot;) in the output:</p>
-<blockquote>
-<p>FIXME: Try a longer time series when the print.VarCorr is fixed.</p>
-</blockquote>
+<p>After running the model, we find the parameter estimates <span class="math inline">\(\mu\)</span> (intercept), <span class="math inline">\(\sigma_0^2\)</span> (dispersion), <span class="math inline">\(\sigma\)</span> (Std. Dev.) and <span class="math inline">\(\phi\)</span> (First off-diagonal of &quot;Corr&quot;) in the output:</p>
+<p>For those trying to make sense of the internal parameterization, the internal transformation from the parameter (<span class="math inline">\(\phi\)</span>) to the AR1 coefficient is <span class="math inline">\(\phi = theta_2/sqrt(1+\theta_2^2)\)</span>; the inverse transformation is <span class="math inline">\(\theta_2 = \phi/sqrt(1-\phi^2)\)</span>. (The first element of the <code>theta</code> vector is the log-standard-deviation.)</p>
 </div>
 <div id="increasing-the-sample-size" class="section level3">
 <h3>Increasing the sample size</h3>
 <p>A single time series of 6 time points is not sufficient to identify the parameters. We could either increase the length of the time series or increase the number of groups. We'll try the latter:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">simGroup &lt;-<span class="st"> </span><span class="cf">function</span>(g, <span class="dt">n=</span><span class="dv">6</span>, <span class="dt">rho=</span><span class="fl">0.7</span>) {
-    x &lt;-<span class="st"> </span><span class="kw">mvrnorm</span>(<span class="dt">mu =</span> <span class="kw">rep</span>(<span class="dv">0</span>,n),
+    x &lt;-<span class="st"> </span>MASS<span class="op">::</span><span class="kw">mvrnorm</span>(<span class="dt">mu =</span> <span class="kw">rep</span>(<span class="dv">0</span>,n),
              <span class="dt">Sigma =</span> rho <span class="op">^</span><span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">dist</span>(<span class="dv">1</span><span class="op">:</span>n)) )   ## Simulate the process
     y &lt;-<span class="st"> </span>x <span class="op">+</span><span class="st"> </span><span class="kw">rnorm</span>(n)                               ## Add measurement noise
     times &lt;-<span class="st"> </span><span class="kw">factor</span>(<span class="dv">1</span><span class="op">:</span>n)
@@ -280,7 +278,7 @@ y &lt;-<span class="st"> </span>x <span class="op">+</span><span class="st"> </s
 </div>
 <div id="the-unstructured-covariance" class="section level2">
 <h2>The unstructured covariance</h2>
-<p>We can try to fit an unstructured covariance to the previous dataset <code>dat</code>. For this case an unstructured covariance has 15 correlation parameters and 6 variance parameters. Adding <span class="math inline">\(\sigma_0^2 I\)</span> on top would cause a strict overparameterization, as these would be redundant with the diagonal elements in the covariance matrix. Hence, when fitting the model with <code>glmmTMB</code>, we have to disable the <span class="math inline">\(\varepsilon\)</span> term (the dispersion) by setting <code>dispformula=~0</code>:</p>
+<p>We can try to fit an unstructured covariance to the previous dataset <code>dat</code>. For this case an unstructured covariance has 300 correlation parameters and 25 variance parameters. Adding <span class="math inline">\(\sigma_0^2 I\)</span> on top would cause a strict overparameterization, as these would be redundant with the diagonal elements in the covariance matrix. Hence, when fitting the model with <code>glmmTMB</code>, we have to disable the <span class="math inline">\(\varepsilon\)</span> term (the dispersion) by setting <code>dispformula=~0</code>:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">fit.us &lt;-<span class="st"> </span><span class="kw">glmmTMB</span>(y <span class="op">~</span><span class="st"> </span><span class="kw">us</span>(times <span class="op">+</span><span class="st"> </span><span class="dv">0</span> <span class="op">|</span><span class="st"> </span>group), <span class="dt">data=</span>dat1, <span class="dt">dispformula=</span><span class="op">~</span><span class="dv">0</span>)
 fit.us<span class="op">$</span>sdr<span class="op">$</span>pdHess ## Converged ?</code></pre></div>
 <p>The estimated variance and correlation parameters are:</p>
@@ -289,7 +287,7 @@ fit.us<span class="op">$</span>sdr<span class="op">$</span>pdHess ## Converged ?
 </div>
 <div id="the-toeplitz-structure" class="section level2">
 <h2>The Toeplitz structure</h2>
-<p>The next natural step would be to reduce the number of parameters by collecting correlation parameters within the same off-diagonal. This amounts to 5 correlation parameters and 6 variance parameters.</p>
+<p>The next natural step would be to reduce the number of parameters by collecting correlation parameters within the same off-diagonal. This amounts to 24 correlation parameters and 25 variance parameters.</p>
 <blockquote>
 <p>FIXME: Explain why dispformula=~1 causes over-parameterization</p>
 </blockquote>
@@ -514,7 +512,7 @@ g(\boldsymbol{\mu}) &amp;= \boldsymbol{X\beta} + \boldsymbol{Z(I_n \otimes \Lamb
 <li><code>method = &quot;res&quot;</code> initializes starting values from the results of fitting a GLM, and fitting a reduced rank model to the residuals to obtain starting values for the fixed coefficients, the latent variables and the factor loadings.</li>
 <li><code>jitter.sd</code> adds variation to the starting values of latent variables when <code>method = &quot;res&quot;</code> (default 0).</li>
 </ul>
-<p>For a reduced rank matrix of rank <code>d</code>, parameters <code>1:d</code> represent the diagonal factor loadings while the remaining <code>$nd-d(d-3)/2$</code>, (i.e. <code>(d+1):(nd-d(d-1)/2</code>) are the lower diagonal factor loadings filled in column-wise order. The factor loadings from a model can be obtained by <code>fit.rr$obj$env$report(fit.rr$fit$parfull)$fact_load[[1]]</code>. An appropriate rank for the model can be determined by standard model selection approaches such as information criteria (e.g. AIC or BIC) <span class="citation">(F. K. Hui et al. 2015)</span>.</p>
+<p>For a reduced rank matrix of rank <code>d</code>, parameters <code>1:d</code> represent the diagonal factor loadings while the remaining <span class="math inline">\(nd-d(d-3)/2\)</span>, (i.e. parameters <code>(d+1):(nd-d(d-1)/2</code>) are the lower diagonal factor loadings filled in column-wise order. The factor loadings from a model can be obtained by <code>fit.rr$obj$env$report(fit.rr$fit$parfull)$fact_load[[1]]</code>. An appropriate rank for the model can be determined by standard model selection approaches such as information criteria (e.g. AIC or BIC) <span class="citation">(F. K. Hui et al. 2015)</span>.</p>
 </div>
 </div>
 <div id="references" class="section level2 unnumbered">

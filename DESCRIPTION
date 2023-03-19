@@ -1,6 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 1.1.5
+Version: 1.1.6
 Authors@R: c(person("Mollie","Brooks",
 		comment=c(ORCID="0000-0001-6963-8326"),
 		role = c("aut", "cre"),
@@ -13,7 +13,8 @@ Authors@R: c(person("Mollie","Brooks",
 	person("Arni","Magnusson", role="aut",
 		comment=c(ORCID="0000-0003-2769-6741")),
 	person("Maeve","McGillycuddy", role="ctb"),
-	person("Hans","Skaug",role="aut"),
+	person("Hans","Skaug",role="aut",
+	        comment=c(ORCID="0000-0003-4235-2592")),
 	person("Anders","Nielsen", role="aut",
 		comment=c(ORCID="0000-0001-9683-9262")),
 	person("Casper","Berg", role="aut",
@@ -57,15 +58,15 @@ LazyData: TRUE
 BugReports: https://github.com/glmmTMB/glmmTMB/issues
 NeedsCompilation: yes
 Encoding: UTF-8
-RoxygenNote: 7.2.2
-Packaged: 2022-11-16 10:26:44 UTC; molliebrooks
+RoxygenNote: 7.2.3
+Packaged: 2023-03-19 19:06:20 UTC; molliebrooks
 Author: Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>),
   Ben Bolker [aut] (<https://orcid.org/0000-0002-2127-0443>),
   Kasper Kristensen [aut],
   Martin Maechler [aut] (<https://orcid.org/0000-0002-8685-9910>),
   Arni Magnusson [aut] (<https://orcid.org/0000-0003-2769-6741>),
   Maeve McGillycuddy [ctb],
-  Hans Skaug [aut],
+  Hans Skaug [aut] (<https://orcid.org/0000-0003-4235-2592>),
   Anders Nielsen [aut] (<https://orcid.org/0000-0001-9683-9262>),
   Casper Berg [aut] (<https://orcid.org/0000-0002-3812-5269>),
   Koen van Bentham [aut],
@@ -79,4 +80,4 @@ Author: Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>),
   Daniel B. Stouffer [ctb] (<https://orcid.org/0000-0001-9436-9674>)
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Repository: CRAN
-Date/Publication: 2022-11-16 22:40:02 UTC
+Date/Publication: 2023-03-19 22:20:11 UTC

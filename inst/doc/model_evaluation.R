@@ -88,6 +88,17 @@ if (effects_ok) {
 ## ----emmeans1-----------------------------------------------------------------
 emmeans(owls_nb1, poly ~ FoodTreatment | SexParent)
 
+## ----hurdle-------------------------------------------------------------------
+owls_hnb1 <- update(owls_nb1, family = truncated_nbinom1, ziformula = ~.)
+
+## -----------------------------------------------------------------------------
+emmeans(owls_hnb1, ~ FoodTreatment * SexParent, component = "cond", type = "response")
+# --- or ---
+emmeans(owls_hnb1, ~ FoodTreatment * SexParent, component = "cmean")
+
+## -----------------------------------------------------------------------------
+emmeans(owls_hnb1, ~ FoodTreatment * SexParent, component = "response")
+
 ## ----drop1_eval,cache=TRUE----------------------------------------------------
 system.time(owls_nb1_d1 <- drop1(owls_nb1,test="Chisq"))
 

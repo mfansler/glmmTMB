@@ -39,20 +39,20 @@ set.seed(1)
 ## Sys.setenv(NOT_CRAN="true")
 
 ## ----sim1, eval=TRUE----------------------------------------------------------
-n <- 6                                              ## Number of time points
-x <- mvrnorm(mu = rep(0,n),
+n <- 25                                              ## Number of time points
+x <- MASS::mvrnorm(mu = rep(0,n),
              Sigma = .7 ^ as.matrix(dist(1:n)) )    ## Simulate the process using the MASS package
 y <- x + rnorm(n)                                   ## Add measurement noise
 
 ## ----simtimes-----------------------------------------------------------------
 #  times <- factor(1:n, levels=1:n)
-#  levels(times)
+#  head(levels(times))
 
 ## ----simgroup-----------------------------------------------------------------
 #  group <- factor(rep(1,n))
 
 ## ----simcomb------------------------------------------------------------------
-#  dat0 <- data.frame(y,times,group)
+#  dat0 <- data.frame(y, times, group)
 
 ## ----fitar1, eval=FALSE-------------------------------------------------------
 #  glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
@@ -62,7 +62,7 @@ y <- x + rnorm(n)                                   ## Add measurement noise
 
 ## ----simGroup-----------------------------------------------------------------
 #  simGroup <- function(g, n=6, rho=0.7) {
-#      x <- mvrnorm(mu = rep(0,n),
+#      x <- MASS::mvrnorm(mu = rep(0,n),
 #               Sigma = rho ^ as.matrix(dist(1:n)) )   ## Simulate the process
 #      y <- x + rnorm(n)                               ## Add measurement noise
 #      times <- factor(1:n)

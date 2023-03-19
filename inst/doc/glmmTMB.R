@@ -1,4 +1,4 @@
-## ----setopts,echo=FALSE,message=FALSE-----------------------------------------
+## ----setopts,echo=FALSE,message=FALSE, eval = TRUE----------------------------
 library("knitr")
 opts_chunk$set(fig.width=5,fig.height=5,
                out.width="0.8\\textwidth",
@@ -7,11 +7,11 @@ opts_chunk$set(fig.width=5,fig.height=5,
 Rver <- paste(R.version$major,R.version$minor,sep=".")
 used.pkgs <- c("glmmTMB","bbmle")  ## packages to report below
 
-## ----pkgversions,echo=FALSE---------------------------------------------------
-#  pkgver <- vapply(sort(used.pkgs),function(x) as.character(packageVersion(x)),"")
-#  print(pkgver,quote=FALSE)
+## ----pkgversions, echo=FALSE, eval=TRUE---------------------------------------
+pkgver <- vapply(sort(used.pkgs),function(x) as.character(packageVersion(x)),"")
+print(pkgver,quote=FALSE)
 
-## ----citation,echo=FALSE,results="asis"---------------------------------------
+## ----citation,eval=FALSE,echo=FALSE-------------------------------------------
 #  print(citation("glmmTMB"),style="latex")
 
 ## ----pkgs,message=FALSE, eval=TRUE--------------------------------------------

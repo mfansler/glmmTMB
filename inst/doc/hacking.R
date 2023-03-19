@@ -1,11 +1,11 @@
 params <-
 list(EVAL = FALSE)
 
-## ----load_lib,echo=FALSE------------------------------------------------------
+## ----glmmTMB, load_lib,echo=FALSE---------------------------------------------
 library(glmmTMB)
 knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALSE)
 
-## ----eval = FALSE-------------------------------------------------------------
+## ---- eval = FALSE------------------------------------------------------------
 #  #' @rdname nbinom2
 #  #' @export
 #  zo_truncated_poisson <- function(link="log") {
@@ -22,7 +22,7 @@ knitr::opts_chunk$set(eval = if (isTRUE(exists("params"))) params$EVAL else FALS
 #  .noDispersionFamilies <- c("binomial", "poisson", "truncated_poisson",
 #                             "zo_truncated_poisson")
 
-## ----eval = FALSE-------------------------------------------------------------
+## ----testzo, eval = FALSE-----------------------------------------------------
 #  library(glmmTMB)
 #  set.seed(101)
 #  dd <- data.frame(y = rpois(500, exp(1)))

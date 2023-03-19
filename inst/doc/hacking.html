@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 
-<meta name="date" content="2022-11-16" />
+<meta name="date" content="2023-03-19" />
 
 <title>Hacking glmmTMB</title>
 
@@ -110,7 +110,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Hacking glmmTMB</h1>
-<h4 class="date">2022-11-16</h4>
+<h4 class="date">2023-03-19</h4>
 
 
 
@@ -229,6 +229,25 @@ Conditional model:
 <div id="additional-distributional-parameters" class="section level2">
 <h2>Additional distributional parameters</h2>
 <p>Some families (Tweedie, Student-t) have shape parameters or other parameters beyond the usual parameters determining the location (mean) and scale (dispersion). These parameters are passed in the <code>thetaf</code> vector: the best thing to do here is to search the R and C++ code for &quot;[Tt]weedie&quot; and see what will need to be adjusted.</p>
+</div>
+<div id="adding-a-covariance-structure" class="section level2">
+<h2>Adding a covariance structure</h2>
+<p>General advice, but written while adding a &quot;diagonal with homogeneous variance&quot; (<code>homdiag</code>) covariance structure.</p>
+<div id="c-code" class="section level3">
+<h3>C++ code</h3>
+<ul>
+<li>add to the <code>valid_covStruct</code> <code>enum</code> in <code>glmmTMB.cpp</code></li>
+<li>modify <code>termwise_nll</code>. In the case of <code>homdiag</code> we can re-use the existing <code>diag_covstruct</code> code (since everything is vectorized so should work equally well with a length-1 or length-<span class="math inline">\(p\)</span> vector of (log) standard deviations)</li>
+</ul>
+</div>
+<div id="r-code-1" class="section level3">
+<h3>R code</h3>
+<ul>
+<li>modify <code>parFun</code> to specify the number of parameters</li>
+<li>modify documentation of <code>glmmTMB()</code></li>
+<li>run <code>make enum-update</code></li>
+</ul>
+</div>
 </div>
 </div>
 

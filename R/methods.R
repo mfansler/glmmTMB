@@ -800,7 +800,7 @@ format.perc <- function (probs, digits) {
 ##' @param cl cluster to use for parallel computation
 ##' @param full CIs for all parameters (including dispersion) ?
 ##' @param include_mapped include dummy rows for mapped (i.e. fixed-value) parameters?
-##' @param ... arguments may be passed to \code{\link{profile.merMod}} or
+##' @param ... arguments may be passed to \code{\link{profile.glmmTMB}} (and possibly from there to \code{\link{tmbprofile}}) or
 ##' \code{\link[TMB]{tmbroot}}
 ##' @examples
 ##' data(sleepstudy, package="lme4")
@@ -1327,16 +1327,18 @@ as.data.frame.ranef.glmmTMB <- function(x, ...) {
 
 #' @rdname bootmer_methods
 #' @title support methods for parametric bootstrapping
-#' @param object a fitted glmmTMB object
+#' @param x a fitted glmmTMB object
+#' @param ... extra args (required for method compatibility)
 #' @param newresp a new response vector
 #' @export
 #' @importFrom lme4 isLMM
 #' @importFrom lme4 refit
 ## don't export refit ...
 #' @description see \code{\link[lme4]{refit}} and \code{\link[lme4:isREML]{isLMM}} for details
-isLMM.glmmTMB <- function(object) {
-   fam <- family(object)
-   fam$family=="gaussian" && fam$link=="identity"
+isLMM.glmmTMB <- function(x, ...) {
+    check_dots(...)
+    fam <- family(x)
+    fam$family=="gaussian" && fam$link=="identity"
 }
 
 #' @export
@@ -1345,6 +1347,7 @@ lme4::refit
 #' @export
 #' @rdname bootmer_methods
 #' @importFrom stats formula
+#' @param object a fitted glmmTMB object
 #' @param ... additional arguments (for generic consistency; ignored)
 #' @examples
 #' if (requireNamespace("lme4")) {

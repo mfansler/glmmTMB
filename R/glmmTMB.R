@@ -178,6 +178,7 @@ startParams <- function(parameters,
     for (j in seq_along(condReStruc)) {
       nt <- condReStruc[[j]]$blockNumTheta
       nb <- condReStruc[[j]]$blockReps * condReStruc[[j]]$blockSize
+      ## FIXME: replace hard-coded 9 with .valid_covstruct["rr"] ?
       if (condReStruc[[j]]$blockCode == 9) {
         start$b[bp:(bp + nb - 1)] <- rrStart$b[brrp:(brrp + nb - 1)]
         start$theta[tp:(tp + nt - 1)] <- rrStart$theta[trrp:(trrp + nt - 1)]
@@ -409,14 +410,16 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
   ##    [because inverse-link is symmetric around 0?]
   beta_init <-  if (family$link %in% c("identity","inverse","sqrt")) 1 else 0
 
+  rr0 <- function(n) {
+     if (is.null(n)) numeric(0) else rep(0, n)
+  }
+
   ## Extra family specific parameters
   ## FIXME: switch/rewrite to be less ugly?
-  numThetaFamily <- if (family$family %in% c("t", "tweedie"))
-                    { 1 } else if (family$family == "ordbeta") { 2 } else { 0 }
+  psiLength <- if (family$family %in% c("t", "tweedie"))
+               { 1 } else if (family$family == "ordbeta") { 2 } else { 0 }
 
-  rr0 <- function(n) {
-       if (is.null(n)) numeric(0) else rep(0, n)
-  }
+  psi_init <- if (family$family == "ordbeta") c(-1, 1) else rr0(psiLength)  
 
   # theta is 0, except if dorr, theta is 1
   t01 <- function(dorr, condReStruc){
@@ -437,14 +440,14 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
 
   parameters <- with(data.tmb,
                      list(
-                       beta    = rep(beta_init, max(ncol(X),ncol(XS))),
+                       beta    = rep(beta_init, max(ncol(X), ncol(XS))),
                        betazi  = rr0(max(ncol(Xzi),ncol(XziS))),
                        b       = rep(beta_init, ncol(Z)),
                        bzi     = rr0(ncol(Zzi)),
                        betad   = rep(betad_init, max(ncol(Xd),ncol(XdS))),
                        theta   = t01(dorr, condReStruc),
                        thetazi = rr0(sum(getVal(ziReStruc,  "blockNumTheta"))),
-                       psi  = rr0(numThetaFamily)
+                       psi  = psi_init
                      ))
 
   if(!is.null(start) || !is.null(control$start_method$method)){
@@ -714,7 +717,7 @@ getReStruc <- function(reTrms, ss=NULL, aa=NULL, reXterms=NULL, fr=NULL) {
 
         parFun <- function(struc, blksize, blkrank) {
             switch(as.character(struc),
-                   "0" = blksize, # diag
+                   "0" = blksize, # (heterogenous) diag
                    "1" = blksize * (blksize+1) / 2, # us
                    "2" = blksize + 1, # cs
                    "3" = 2,  # ar1
@@ -723,7 +726,9 @@ getReStruc <- function(reTrms, ss=NULL, aa=NULL, reXterms=NULL, fr=NULL) {
                    "6" = 2,  # gau
                    "7" = 3,  # mat
                    "8" = 2 * blksize - 1, # toep
-                   "9" = blksize * blkrank - (blkrank - 1) * blkrank / 2) #rr
+                   "9" = blksize * blkrank - (blkrank - 1) * blkrank / 2, #rr
+                   "10" = 1  ## (homogeneous) diag
+                   ) 
         }
         blockNumTheta <- mapply(parFun, covCode, blksize, blkrank, SIMPLIFY=FALSE)
 
@@ -836,6 +841,7 @@ binomialType <- function(x) {
 ##' \item \code{mat} (* Matérn process correlation)
 ##' \item \code{toep} (* Toeplitz)
 ##' \item \code{rr} (reduced rank/factor-analytic model)
+##' \item \code{homdiag} (diagonal, homogeneous variance)
 ##' }
 ##' Structures marked with * are experimental/untested. See \code{vignette("covstruct", package = "glmmTMB")} for more information.
 ##' \item For backward compatibility, the \code{family} argument can also be specified as a list comprising the name of the distribution and the link function (e.g. \code{list(family="binomial", link="logit")}). However, \strong{this alternative is now deprecated}; it produces a warning and will be removed at some point in the future. Furthermore, certain capabilities such as Pearson residuals or predictions on the data scale will only be possible if components such as \code{variance} and \code{linkfun} are present, see \code{\link{family}}.
@@ -1374,14 +1380,15 @@ glmmTMBControl <- function(optCtrl=NULL,
 ##' user's responsibility to make sure that any modifications
 ##' create an internally consistent final fitted object).
 ##'
-##' @param TMBStruc a list contain
+##' @param TMBStruc a list containing lots of stuff ...
+##' @param doOptim logical; do optimization? If FALSE, return TMB object
 ##' @examples
 ##' m0 <- glmmTMB(count ~ mined + (1|site),
 ##'              family=poisson, data=Salamanders, doFit=FALSE)
 ##' names(m0)
 ##' fitTMB(m0)
 ##' @export
-fitTMB <- function(TMBStruc) {
+fitTMB <- function(TMBStruc, doOptim = TRUE) {
 
     control <- TMBStruc$control
 
@@ -1474,7 +1481,7 @@ fitTMB <- function(TMBStruc) {
         max.newton.steps <- 5
         newton.tol <- 1e-10
         if (sdr$pdHess) {
-          ## pdHess can be FALSE (FIXME: neither of these fallback options is implemented?)
+            ## pdHess can be FALSE (FIXME: neither of these fallback options is implemented?)
           ##  * Happens for boundary fits (e.g. dispersion close to 0 - see 'spline' example)
           ##    * Option 1: Fall back to old method
           ##    * Option 2: Skip Newton iterations
@@ -1500,6 +1507,7 @@ fitTMB <- function(TMBStruc) {
                               profile = NULL,
                               silent = !verbose,
                               DLL = "glmmTMB"))
+        if (!doOptim) return(obj)
         if (is.na(obj$fn(obj$par))) {
             stop("negative log-likelihood is NaN at starting parameter values")
         }

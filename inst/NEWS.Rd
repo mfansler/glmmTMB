@@ -4,7 +4,39 @@
 \title{glmmTMB News}
 \encoding{UTF-8}
 
-\section{CHANGES IN VERSION 1.1.5}{
+\section{CHANGES IN VERSION 1.1.6}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item fix bug in diagnose for Tweedie, other models with 'psi'
+      parameter (@nalimilan, GH #135)
+    }
+  }  % bug fixes
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item added a \code{doOptim} argument to \code{fitTMB}, to return
+      the constructed TMB object without fitting the parameters
+      \item new (experimental) function \code{simulate_new}, to simulate
+      from a formula, list of parameters, and covariate data (rather
+      than from a fitted object)
+      \item \code{emmeans.glmmTMB} method adds two options
+      for the \code{component} argument: "response" and "cmean",
+      corresponding  to \code{type = "response"} and \code{type = "conditional"} 
+      in \code{predict.glmmTMB} (Russ Lenth)
+      \item new covariance structure \code{homdiag} (homogeneous diagonal;
+      the existing diagonal covariance structure, \code{diag}, assumes heterogeneous
+      variances)					    
+    }
+  } % new features
+ \subsection{USER-VISIBLE CHANGES}{
+    \itemize{
+      \item The \code{emmeans} method for glmmTMB fits now returns infinite
+      "df" (i.e., normal- rather than t-based CIs and tests) for non-Gaussian
+      families, consistent with \code{glm} and other packages (GH #893)
+    }
+  } % user-visible changes
+}
+
+\section{CHANGES IN VERSION 1.1.5 (2022-11-16)}{
     \subsection{BUG FIXES}{
       \itemize{
 	\item improve predict-handling of complex bases (GH #632, #845,
@@ -19,10 +51,27 @@
     } % bug fixes
     \subsection{USER-VISIBLE CHANGES}{
       \itemize{
-	\item glmmTMB now stops if fixed-effect model matrices are
+	\item glmmTMB has switched to using a different (newer, under
+	active development) autodifferentiation library under the hood
+	(from \code{CppAD} to \code{TMBad}). This is likely to lead to
+	small changes in estimates, including tipping marginally stable
+	computations to instability or vice versa (e.g. presence or
+	absence of convergence warnings, positive-definite Hessian
+	warnings, \code{NaN} values of standard errors, etc.) You can revert
+	to using the older autodiff engine by commenting out the line
+	\code{PKG_CPPFLAGS = -DTMBAD_FRAMEWORK} in \code{src/Makevars}
+	and reinstalling the package (make sure to delete .o/.so files
+	from the \code{src} directory first if installing from the package
+	directory, as the Makefile doesn't recognize know that this
+	change requires recompilation).
+	\item glmmTMB now warns if fixed-effect model matrices are
 	rank deficient (i.e., perfectly collinear predictors); this
-	can be changed to a warning via
-	\code{glmmTMBControl(rank_check="skip") (Daniel B. Stouffer)}
+	warning can be suppressed by setting
+	\code{glmmTMBControl(rank_check="skip")}
+	(\code{rank_check = "stop"} will throw an error).
+	If \code{rank_check="adjust"}, glmmTMB
+	will automatically drop appropriate columns from the model
+	matrix  (Daniel B. Stouffer)
 	\item the vector of "extra" family parameters
 	(Tweedie power, Student-t df,
 	etc.) has been renamed from "thetaf" to "psi"; \code{start}
@@ -48,7 +97,7 @@
     } % itemize
   } % new features
 } % version 1.1.5
-  
+
 \section{CHANGES IN VERSION 1.1.4 (2022-07-12)}{
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
@@ -112,7 +161,7 @@
   \subsection{USER-VISIBLE CHANGES}{
     \itemize{
       \item Double-bar notation (\code{(x+y||g)}) is now translated to a
-  diagonal-covariance term (\code{diag(x+y|g)}) rather than being split 
+  diagonal-covariance term (\code{diag(x+y|g)}) rather than being split
   into separate random effects terms as in  \code{lme4}. This should not
   change modeling results, but may change their
   presentation/ordering/etc.. (This is also a bug fix, as double-bar
@@ -135,13 +184,13 @@
     }
   }
 }
-  
+
 \section{CHANGES IN VERSION 1.1.2.2 (2021-09-01)}{
   \itemize{
     \item This is an administrative release (minor revisions for CRAN).
   }
 }
-  
+
 \section{CHANGES IN VERSION 1.1.2 (2021-07-20)}{
   \subsection{BUG FIXES}{
     \itemize{
@@ -157,11 +206,11 @@
     }
   } % user-visible changes
 } % version 1.1.2
-  
+
 \section{CHANGES IN VERSION 1.1.0 (2021-06-24)}{
   \subsection{NEW FEATURES}{
     \itemize{
-      \item reduced rank covariance for GLVMs implemented by M.McGillycuddy 
+      \item reduced rank covariance for GLVMs implemented by M.McGillycuddy
       (see covstruct vignette for details)
       \item \code{diagnose} function to investigate potential causes of convergence problems
       \item improved parallel processing (GH #620 #652)
@@ -181,11 +230,11 @@
       \code{parm="theta_"} now work correctly with more complex models
       (e.g. including both zero inflation and random effects)
       (reported by @MKie45 on Stack Overflow)
-      \item \code{confint} works for single-parameter models and those 
+      \item \code{confint} works for single-parameter models and those
       with a \code{dispformula} (GH #622)
       \item mapped (fixed) variables could give incorrect predictions (GH #644)
-      \item \code{simulate} is more robust for truncated_nbinom1 and 
-      truncated_nbinom2 (GH #572) 
+      \item \code{simulate} is more robust for truncated_nbinom1 and
+      truncated_nbinom2 (GH #572)
     }
   }
   \subsection{USER-VISIBLE CHANGES}{
