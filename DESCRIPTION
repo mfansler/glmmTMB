@@ -1,6 +1,6 @@
 Package: glmmTMB
 Title: Generalized Linear Mixed Models using Template Model Builder
-Version: 1.1.6
+Version: 1.1.7
 Authors@R: c(person("Mollie","Brooks",
 		comment=c(ORCID="0000-0001-6963-8326"),
 		role = c("aut", "cre"),
@@ -59,7 +59,7 @@ BugReports: https://github.com/glmmTMB/glmmTMB/issues
 NeedsCompilation: yes
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Packaged: 2023-03-19 19:06:20 UTC; molliebrooks
+Packaged: 2023-04-05 11:19:39 UTC; molliebrooks
 Author: Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>),
   Ben Bolker [aut] (<https://orcid.org/0000-0002-2127-0443>),
   Kasper Kristensen [aut],
@@ -80,4 +80,4 @@ Author: Mollie Brooks [aut, cre] (<https://orcid.org/0000-0001-6963-8326>),
   Daniel B. Stouffer [ctb] (<https://orcid.org/0000-0001-9436-9674>)
 Maintainer: Mollie Brooks <mollieebrooks@gmail.com>
 Repository: CRAN
-Date/Publication: 2023-03-19 22:20:11 UTC
+Date/Publication: 2023-04-05 21:03:31 UTC
