@@ -38,6 +38,26 @@ set.seed(1)
 ## run this in interactive session if you actually want to evaluate chunks ...
 ## Sys.setenv(NOT_CRAN="true")
 
+## ----covstruct-table, echo  = FALSE, eval = TRUE------------------------------
+ctab <- read.delim(sep = "#", comment = "",
+                   header = TRUE,
+                   check.names = FALSE,
+           text = "
+ Covariance                       # Notation      # no. parameters # Requirement  # Parameters
+ Unstructured (general positive definite)      # `us`          #  $n(n+1)/2$     # # See [Mappings]
+ Heterogeneous Toeplitz           # `toep`        #  $2n-1$         #     # log-SDs ($\\theta_1-\\theta_n$); correlations $\\rho_k = \\theta_{n+k}/\\sqrt{1+\\theta_{n+k}^2}$, $k = \\textrm{abs}(i-j+1)$
+ Het. compound symmetry  # `cs`          #  $n+1$    #      # log-SDs ($\\theta_1-\\theta_n$); correlation $\\rho = \\theta_{n+1}/\\sqrt{1+\\theta_{n+1}^2}$
+ Het. diagonal           # `diag`        #  $n$            #  # log-SDs
+ AR(1)                            # `ar1`         #  $2$            # Unit spaced levels # log-SD; $\\rho = \\left(\\theta_2/\\sqrt{1+\\theta_2^2}\\right)^{d_{ij}}$
+ Ornstein-Uhlenbeck               # `ou`          #  $2$            # Coordinates  # log-SD; log-OU rate ($\\rho = \\exp(-\\exp(\\theta_2) d_{ij})$)
+ Spatial exponential              # `exp`         #  $2$            # Coordinates # log-SD; log-scale ($\\rho = \\exp(-\\exp(-\\theta_2) d_{ij})$)
+ Spatial Gaussian                 # `gau`         #  $2$            # Coordinates # log-SD; log-scale ($\\rho = \\exp(-\\exp(-2\\theta_2) d_{ij}^2$)
+ Spatial Matèrn                   # `mat`         #  $3$            # Coordinates # log-SD, log-range, log-shape (power)
+ Reduced rank                     # `rr`          #  $nd-d(d-1)/2$  # rank (d)    
+"
+)
+knitr::kable(ctab)
+
 ## ----sim1, eval=TRUE----------------------------------------------------------
 n <- 25                                              ## Number of time points
 x <- MASS::mvrnorm(mu = rep(0,n),
@@ -61,9 +81,9 @@ y <- x + rnorm(n)                                   ## Add measurement noise
 #  glmmTMB(y ~ ar1(times + 0 | group), data=dat0)
 
 ## ----simGroup-----------------------------------------------------------------
-#  simGroup <- function(g, n=6, rho=0.7) {
+#  simGroup <- function(g, n=6, phi=0.7) {
 #      x <- MASS::mvrnorm(mu = rep(0,n),
-#               Sigma = rho ^ as.matrix(dist(1:n)) )   ## Simulate the process
+#               Sigma = phi ^ as.matrix(dist(1:n)) )   ## Simulate the process
 #      y <- x + rnorm(n)                               ## Add measurement noise
 #      times <- factor(1:n)
 #      group <- factor(rep(g,n))
@@ -85,7 +105,8 @@ y <- x + rnorm(n)                                   ## Add measurement noise
 #  VarCorr(fit.us)
 
 ## ----fit.toep-----------------------------------------------------------------
-#  fit.toep <- glmmTMB(y ~ toep(times + 0 | group), data=dat1, dispformula=~0)
+#  fit.toep <- glmmTMB(y ~ toep(times + 0 | group), data=dat1,
+#                      dispformula=~0)
 #  fit.toep$sdr$pdHess ## Converged ?
 
 ## ----fit.toep.vc--------------------------------------------------------------
@@ -299,4 +320,10 @@ usefig("cs_profile_plot.png")
 #      ## compare fits via AIC
 #      aic_vec <- sapply(fit_list, AIC)
 #      aic_vec - min(aic_vec, na.rm = TRUE)
+
+## ----mm_int, eval = TRUE------------------------------------------------------
+model.matrix(~f, data.frame(f=factor(c("c", "s", "v"))))
+
+## ----mm_noint, eval = TRUE----------------------------------------------------
+model.matrix(~0+f, data.frame(f=factor(c("c", "s", "v"))))
 

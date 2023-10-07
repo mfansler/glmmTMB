@@ -27,7 +27,8 @@ mkTMBStruc(
   start = NULL,
   map = NULL,
   sparseX = NULL,
-  control = glmmTMBControl()
+  control = glmmTMBControl(),
+  old_smooths = NULL
 )
 }
 \arguments{
@@ -77,9 +78,8 @@ mkTMBStruc(
 
 \item{control}{control parameters, see \code{\link{glmmTMBControl}}.}
 
-\item{zioffset}{offset for zero-inflated model}
-
-\item{doffset}{offset for dispersion model}
+\item{old_smooths}{(optional) smooth components from a previous fit: used when constructing a new model structure for prediction
+from an existing model. A list of smooths for each model component (only cond and zi at present); each smooth has sm and re elements}
 }
 \description{
 Extract info from formulas, reTrms, etc., format for TMB

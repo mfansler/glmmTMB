@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 
-<meta name="date" content="2023-04-05" />
+<meta name="date" content="2023-10-07" />
 
 <title>Troubleshooting with glmmTMB</title>
 
@@ -24,6 +24,7 @@
   div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
   ul.task-list{list-style: none;}
     </style>
+
 
 
 <style type="text/css">
@@ -79,13 +80,20 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
   for (var i = 0; i < sheets.length; i++) {
     if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
     try { var rules = sheets[i].cssRules; } catch (e) { continue; }
-    for (var j = 0; j < rules.length; j++) {
+    var j = 0;
+    while (j < rules.length) {
       var rule = rules[j];
       // check if there is a div.sourceCode rule
-      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
       var style = rule.style.cssText;
       // check if color or background-color is set
-      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
       // replace div.sourceCode by a pre.sourceCode rule
       sheets[i].deleteRule(j);
       sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
@@ -110,7 +118,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Troubleshooting with glmmTMB</h1>
-<h4 class="date">2023-04-05</h4>
+<h4 class="date">2023-10-07</h4>
 
 
 
@@ -214,15 +222,15 @@ s_vals &lt;-<span class="st"> </span><span class="kw">cbind</span>(<span class="
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mod2_optim &lt;-<span class="st"> </span><span class="kw">update</span>(mod2,
                 <span class="dt">control=</span><span class="kw">glmmTMBControl</span>(<span class="dt">optimizer=</span>optim,
                                        <span class="dt">optArgs=</span><span class="kw">list</span>(<span class="dt">method=</span><span class="st">&quot;BFGS&quot;</span>)))</code></pre></div>
-<pre><code>## Warning in glmmTMB(formula = taeCPUE ~ Avg.Relief + (1 | site.name/reef.name), :
-## non-integer counts in a nbinom1 model</code></pre>
+<pre><code>## Warning in glmmTMB(formula = taeCPUE ~ Avg.Relief + (1 | site.name/reef.name),
+## : non-integer counts in a nbinom1 model</code></pre>
 <p>BFGS doesn't give us any warnings. Comparing the parameter estimates:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">(parcomp &lt;-<span class="st"> </span><span class="kw">cbind</span>(<span class="dt">nlminb=</span><span class="kw">unlist</span>(<span class="kw">fixef</span>(mod2)),
                   <span class="dt">optim=</span><span class="kw">unlist</span>(<span class="kw">fixef</span>(mod2_optim))))</code></pre></div>
 <pre><code>##                       nlminb       optim
 ## cond.(Intercept)  -4.6150738  -4.6152081
 ## cond.Avg.Relief    0.1674507   0.1674755
-## disp.(Intercept) -17.3339441 -11.4800821</code></pre>
+## disp.(Intercept) -17.3339441 -11.4800818</code></pre>
 <p>The conditional-model parameters are practically identical. The dispersion parameters <em>look</em> quite different (-17.3 vs. -11.5), but if we back-transform from the log scale (via <code>exp()</code>) we can see that they are both extremely small (<span class="math inline">\(2.96\times 10^{-8}\)</span> vs. <span class="math inline">\(1.03\times 10^{-5}\)</span>).</p>
 <p>Simplify the model by switching from NB1 to Poisson:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mod3 &lt;-<span class="st"> </span><span class="kw">update</span>(mod2, <span class="dt">family=</span>poisson)</code></pre></div>

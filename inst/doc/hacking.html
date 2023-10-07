@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 
-<meta name="date" content="2023-04-05" />
+<meta name="date" content="2023-10-07" />
 
 <title>Hacking glmmTMB</title>
 
@@ -24,6 +24,7 @@
   div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
   ul.task-list{list-style: none;}
     </style>
+
 
 
 <style type="text/css">
@@ -79,13 +80,20 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
   for (var i = 0; i < sheets.length; i++) {
     if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
     try { var rules = sheets[i].cssRules; } catch (e) { continue; }
-    for (var j = 0; j < rules.length; j++) {
+    var j = 0;
+    while (j < rules.length) {
       var rule = rules[j];
       // check if there is a div.sourceCode rule
-      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
       var style = rule.style.cssText;
       // check if color or background-color is set
-      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
       // replace div.sourceCode by a pre.sourceCode rule
       sheets[i].deleteRule(j);
       sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
@@ -110,7 +118,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 <h1 class="title toc-ignore">Hacking glmmTMB</h1>
-<h4 class="date">2023-04-05</h4>
+<h4 class="date">2023-10-07</h4>
 
 
 
@@ -174,7 +182,9 @@ zo_truncated_poisson &lt;-<span class="st"> </span><span class="cf">function</sp
     <span class="kw">return</span>(<span class="kw">make_family</span>(r,link))
 }</code></pre></div>
 <p>As you can see, I haven't yet worked out the variance of a zero-one-truncated Poisson. This will only cause problems if/when a user wants to estimate Pearson residuals.</p>
-<p>If this were for long-term use, you might want to add the documentation to the <code>?glmmTMB::family_glmmTMB</code> page. This material is located in <code>R/family.R</code>, above the <code>nbinom2</code> family function.</p>
+<p>Ideally a <code>$dev.resids()</code> component should also be added, to return the <em>deviance residuals</em> (i.e., <span class="math inline">\(2 (\log L(y_i) - \log L_{\textrm{sat}}(y_i))\)</span>, where <span class="math inline">\(L_{\textrm{sat}}\)</span> is the log-likelihood of <span class="math inline">\(y_i\)</span> under the <em>saturated</em> model; see the <code>$dev.resids</code> components of families built into base R for examples.</p>
+<p>For some families, the variance and deviance-residuals function require extra information such as a dispersion parameter. For the <code>nbinom1</code> and <code>nbinom2</code> families, <code>glmmTMB</code> does some additional stuff to store the value of the dispersion parameter in the environment of the variance/deviance residual functions (which share an environment), and to retrieve the dispersion parameter from the environment (search for &quot;.Theta&quot; in the R code for the package).</p>
+<p>You should also document your new family, probably in the <code>?glmmTMB::family_glmmTMB</code> page. This material is located in <code>R/family.R</code>, above the <code>nbinom2</code> family function.</p>
 </div>
 <div id="modifying-glmmtmb.r" class="section level3">
 <h3>modifying glmmTMB.R</h3>
@@ -249,6 +259,38 @@ Conditional model:
 </ul>
 </div>
 </div>
+</div>
+<div id="structure-of-a-glmmtmb-object" class="section level1">
+<h1>Structure of a <code>glmmTMB</code> object</h1>
+<p>Since I don't think this is explicitly documented anywhere ...</p>
+<ul>
+<li><code>obj</code>: this is a TMB-object (no explicit class, just a list) as created by <code>TMB::MakeADFun()</code>. It has useful components</li>
+<li><code>$fn</code>: the negative log-likelihood function (takes a vector of <em>non-random</em> parameters (<code>beta</code>, <code>betazi</code>, <code>bzi</code>, <code>theta</code>, <code>thetazi</code>, <code>psi</code> depending on the model; <code>b</code> and <code>bzi</code> are excluded)</li>
+<li><code>$gr</code>: gradient of the NLL function</li>
+<li><code>$env</code>: environment, holding useful stuff like <code>$random</code> (positions of random-effect parameters), <code>$last.par.best</code>, etc.</li>
+<li><code>$report</code> (return derived values)</li>
+<li><code>$simulate</code> (simulate new responses)</li>
+<li><code>fit</code>: results of optimization</li>
+<li><code>sdr</code>: results of calling <code>sdreport()</code></li>
+<li><code>call</code>: original model call</li>
+<li><code>frame</code>: model frame</li>
+<li><code>modelInfo</code>: lots of useful information
+<ul>
+<li><code>nobs</code>: number of observations (should be the same as <code>nrow(x$frame)</code>)</li>
+<li><code>respCol</code>: response column</li>
+<li><code>grpVar</code>: (?)</li>
+<li><code>family</code>: GLM family</li>
+<li><code>contrasts</code></li>
+<li><code>reTrms</code></li>
+<li><code>terms</code></li>
+<li><code>reStruc</code></li>
+<li><code>allForm</code></li>
+<li><code>REML</code></li>
+<li><code>map</code></li>
+<li><code>sparseX</code></li>
+<li><code>parallel</code></li>
+</ul></li>
+</ul>
 </div>
 
 
