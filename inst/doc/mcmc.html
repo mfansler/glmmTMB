@@ -12,7 +12,7 @@
 
 <meta name="author" content="Ben Bolker" />
 
-<meta name="date" content="2023-10-07" />
+<meta name="date" content="2024-03-18" />
 
 <title>Post-hoc MCMC with glmmTMB</title>
 
@@ -120,7 +120,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Post-hoc MCMC with glmmTMB</h1>
 <h4 class="author">Ben Bolker</h4>
-<h4 class="date">2023-10-07</h4>
+<h4 class="date">2024-03-18</h4>
 
 
 
@@ -224,7 +224,7 @@ m1[,<span class="st">&quot;cor&quot;</span>] &lt;-<span class="st"> </span><span
 <span class="kw">library</span>(tmbstan)
 t2 &lt;-<span class="st"> </span><span class="kw">system.time</span>(m2 &lt;-<span class="st"> </span><span class="kw">tmbstan</span>(fm1<span class="op">$</span>obj))</code></pre></div>
 <p>(running this command, which creates 4 chains, takes 125.7 seconds)</p>
-<p>However, there are many indications (warning messages; trace plots) that the correlation parameter needs to a more informative prior. (In the plot below, the correlation parameter is shown on its unconstrained scale; the actual correlation would be <span class="math inline">\(\theta_3/\sqrt{1+\theta_3^2}\)</span>.)</p>
+<p>However, there are many indications (warning messages; trace plots) that the correlation parameter needs to be given a more informative prior. (In the plot below, the correlation parameter is shown on its unconstrained scale; the actual correlation would be <span class="math inline">\(\theta_3/\sqrt{1+\theta_3^2}\)</span>.)</p>
 </div>
 <div id="to-do" class="section level2">
 <h2>To do</h2>

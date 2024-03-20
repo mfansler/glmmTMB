@@ -21,16 +21,33 @@ in_glm_fit <- function() {
     identical(up_two[[1]], quote(glm.fit))
 }
 
-make_family <- function(x, link) {
+make_family <- function(x, link, needs_nonneg = FALSE, needs_int = FALSE) {
     x <- c(x, list(link=link), make.link(link))
     ## stubs for Effect.default/glm.fit
     if (is.null(x$aic)) {
         x <- c(x,list(aic=function(...) NA_real_))
     }
     if (is.null(x$initialize)) {
-        ## should handle log-links adequately
-        x <- c(x,list(initialize=expression({mustart <- y+0.1})))
+        x <- c(x,list(initialize=
+                          substitute(env = list(FAMILY=x$family),
+            expr = expression({
+            ## should handle log-links adequately
+            mustart <- y+0.1
+            if (needs_int) {
+                if (any(abs(y - round(y)) > 0.001)) {
+                    warning(gettextf("non-integer counts in a %s response variable", 
+                                     FAMILY), domain = NA)
+                }
+            }
+            if (needs_nonneg) {
+                if (any(y < 0)) {
+                    warning(gettextf("negative values in a %s response variable", 
+                                     FAMILY), domain = NA)
+                }
+            }
+            }))))
     }
+        
     if (is.null(x$dev.resids)) {
         x <- c(x,list(dev.resids=function(y,mu,wt)  {
             if (in_glm_fit()) {
@@ -98,11 +115,11 @@ get_nbinom_disp <- function(disp, pname1 = ".Theta", pname2 = "theta") {
 ##' as \eqn{\phi=\exp(\eta)}{phi=exp(eta)} (where \eqn{\eta}{eta} is the linear predictor from the dispersion model),
 ##' and the predicted mean as \eqn{\mu}{mu}:
 ##'  \describe{
-##'      \item{gaussian}{(from base R): constant \eqn{V=\phi}{V=phi}}
+##'      \item{gaussian}{(from base R): constant \eqn{V=\phi^2}{V=phi^2}}
 ##'      \item{Gamma}{(from base R) phi is the shape parameter. \eqn{V=\mu\phi}{V=mu*phi}}
 ##'       \item{ziGamma}{a modified version of \code{Gamma} that skips checks for zero values, allowing it to be used to fit hurdle-Gamma models}
 ##'      \item{nbinom2}{Negative binomial distribution: quadratic parameterization (Hardin & Hilbe 2007). \eqn{V=\mu(1+\mu/\phi) = \mu+\mu^2/\phi}{V=mu*(1+mu/phi) = mu+mu^2/phi}.}
-##'      \item{nbinom1}{Negative binomial distribution: linear parameterization (Hardin & Hilbe 2007). \eqn{V=\mu(1+\phi)}{V=mu*(1+phi)}}
+##'      \item{nbinom1}{Negative binomial distribution: linear parameterization (Hardin & Hilbe 2007). \eqn{V=\mu(1+\phi)}{V=mu*(1+phi)}. \emph{Note} that the \eqn{phi} parameter has opposite meanings in the \code{nbinom1} and \code{nbinom2} families. In \code{nbinom1} overdispersion increases with increasing \code{phi} (the Poisson limit is \code{phi=0}); in \code{nbinom2} overdispersion decreases with increasing \code{phi} (the Poisson limit is reached as \code{phi} goes to infinity).}
 ##'      \item{truncated_nbinom2}{Zero-truncated version of nbinom2: variance expression from Shonkwiler 2016. Simulation code (for this and the other truncated count distributions) is taken from C. Geyer's functions in the \code{aster} package; the algorithms are described in \href{https://cran.r-project.org/package=aster/vignettes/trunc.pdf}{this vignette}.}
 ##'      \item{compois}{Conway-Maxwell Poisson distribution: parameterized with the exact mean (Huang 2017), which differs from the parameterization used in the \pkg{COMPoissonReg} package (Sellers & Shmueli 2010, Sellers & Lotze 2015). \eqn{V=\mu\phi}{V=mu*phi}.}
 ##'      \item{genpois}{Generalized Poisson distribution (Consul & Famoye 1992). \eqn{V=\mu\exp(\eta)}{V=mu*exp(eta)}. (Note that Consul & Famoye (1992) define \eqn{\phi}{phi} differently.) Our implementation is taken from the \code{HMMpa} package, based on Joe and Zhu (2005) and implemented by Vitali Witowski.}
@@ -182,7 +199,7 @@ compois <- function(link="log") {
                if (length(phi)==1) phi <- rep(phi, length=length(mu))
                .Call("compois_calc_var", mu, 1/phi, PACKAGE="glmmTMB")
           })
-    return(make_family(r,link))
+    return(make_family(r, link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 #' @rdname nbinom2
@@ -192,7 +209,7 @@ truncated_compois <- function(link="log") {
            variance=function(mu,phi) {
              stop("variance for truncated compois family not yet implemented")
            })
-    return(make_family(r,link))
+    return(make_family(r,link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 #' @rdname nbinom2
@@ -202,7 +219,7 @@ genpois <- function(link="log") {
            variance=function(mu,phi) {
                mu*phi
            })
-    return(make_family(r,link))
+    return(make_family(r,link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 #' @rdname nbinom2
@@ -212,7 +229,7 @@ truncated_genpois <- function(link="log") {
            variance=function(mu,phi) {
              stop("variance for truncated genpois family not yet implemented")
           })
-    return(make_family(r,link))
+    return(make_family(r,link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 #' @rdname nbinom2
@@ -222,7 +239,7 @@ truncated_poisson <- function(link="log") {
            variance=function(lambda) {
            (lambda+lambda^2)/(1-exp(-lambda)) - lambda^2/((1-exp(-lambda))^2)
            })
-        return(make_family(r,link))
+        return(make_family(r,link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 #' @rdname nbinom2
@@ -248,7 +265,7 @@ truncated_nbinom2 <- function(link="log") {
                           (a*(1-pnbinom(c,mu=mu,size=theta)))
                       return(mu_star + c*(mu_star-mu) +mu_star*mu*(1+1/a)-mu_star^2)
               })
-    return(make_family(r,link))
+    return(make_family(r,link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 #' @rdname nbinom2
@@ -258,7 +275,7 @@ truncated_nbinom1 <- function(link="log") {
            variance=function(mu,alpha) {
                stop("variance for truncated nbinom1 family not yet implemented")
            })
-    return(make_family(r,link))
+    return(make_family(r,link, needs_nonneg = TRUE, needs_int = TRUE))
 }
 
 ## similar to mgcv::betar(), but simplified.
@@ -287,8 +304,6 @@ beta_family <- function(link="logit") {
     return(make_family(r,link))
 }
 
-## fixme: better name?
-
 #' @rdname nbinom2
 #' @export
 ## variance= (Wikipedia)
@@ -304,7 +319,7 @@ betabinomial <- function(link="logit") {
               variance = function(mu, phi) {
                   mu*(1-mu)
               },
-              initialize = binomial()$initialize)
+              initialize = our_binom_initialize(binomial()$initialize))
     return(make_family(r,link))
 }
 
@@ -315,7 +330,7 @@ tweedie <- function(link="log") {
            variance = function(mu, phi, power) {
                phi * mu ^ power
          })
-    return(make_family(r,link))
+    return(make_family(r,link, needs_nonneg = TRUE))
 }
 
 #' @rdname nbinom2
@@ -324,8 +339,16 @@ lognormal <- function(link="log") {
     r <- list(family="lognormal",
               variance=function(mu,phi) phi^2,
               initialize = expression({
-                  if (any(y <= 0)) 
-                      stop("non-positive values not allowed for the 'lognormal' family")
+                  if (exists("ziformula") && !ident(ziformula, ~0)) {
+                      if (any(y < 0)) {
+                          stop("y values must be >= 0")
+                      }
+                      mustart <- y + 0.1
+                  } else {
+                      if (any(y <= 0)) {
+                          stop("y values must be > 0 (may be =0 if ziformula is specified)")
+                      }
+                  }
               })
               )
     return(make_family(r,link))

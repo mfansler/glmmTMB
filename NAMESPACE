@@ -97,22 +97,10 @@ export(truncated_poisson)
 export(tweedie)
 export(up2date)
 export(ziGamma)
-if(getRversion() >= "3.6.0") {
-     S3method(car::Anova, glmmTMB)
-} else {
-  export(Anova.glmmTMB)
-}
-if(getRversion() >= "3.6.0") {
-     S3method(multcomp::modelparm, glmmTMB)
-} else {
-   export(modelparm.glmmTMB)
-}
-if(getRversion() >= "3.6.0") {
-  S3method(effects::Effect, glmmTMB)
-} else {
-  export(Effect.glmmTMB)
-}
-if(getRversion()>='3.3.0') importFrom(stats, sigma) else importFrom(lme4,sigma)
+if(getRversion() >= "3.6.0") { S3method(car::Anova, glmmTMB) } else { export(Anova.glmmTMB) }
+if(getRversion() >= "3.6.0") { S3method(effects::Effect, glmmTMB)  } else { export(Effect.glmmTMB) }
+if(getRversion() >= "3.6.0") { S3method(multcomp::modelparm, glmmTMB) } else {  export(modelparm.glmmTMB) }
+if(getRversion()>='3.3.0') { importFrom(stats, sigma) } else { importFrom(lme4,sigma) }
 importFrom(Matrix,Cholesky)
 importFrom(Matrix,crossprod)
 importFrom(Matrix,diag)
@@ -198,6 +186,7 @@ importFrom(stats,profile)
 importFrom(stats,qchisq)
 importFrom(stats,qnbinom)
 importFrom(stats,qnorm)
+importFrom(stats,reformulate)
 importFrom(stats,residuals)
 importFrom(stats,rnbinom)
 importFrom(stats,rnorm)
@@ -211,6 +200,7 @@ importFrom(stats,var)
 importFrom(stats,vcov)
 importFrom(stats,weights)
 importFrom(stats,xtabs)
+importFrom(utils,capture.output)
 importFrom(utils,head)
 importFrom(utils,packageVersion)
 useDynLib(glmmTMB)

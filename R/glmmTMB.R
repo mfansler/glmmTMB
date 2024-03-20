@@ -128,7 +128,11 @@ startParams <- function(parameters,
       resForm <- addForm(resForm, rrForm)
     }
     # residual model; assuming gaussian and fixing sd to 1
-    fit.res <- glmmTMB(resForm, data = fr.res, family = gaussian, start = list(betad = c(log(1))), map = list(betad = factor(c(NA))))
+    fit.res <- glmmTMB(resForm, data = fr.res,
+                       family = gaussian,
+                       start = list(betad = c(log(1))),
+                       map = list(betad = factor(c(NA))),
+                       control = glmmTMBControl(conv_check = "skip"))
     par.list$theta <- fit.res$obj$env$parList(fit.res$fit$par, fit.res$fit$parfull)$theta
     par.list$b <- fit.res$obj$env$parList(fit.res$fit$par, fit.res$fit$parfull)$b
     # Add jitter to latent variables
@@ -149,7 +153,8 @@ startParams <- function(parameters,
     # FIX ME: Need to add offset?
     fit.fixed <- glmmTMB(fixedform, data = fr, family = fam,
                          ziformula = ziformula, dispformula = dispformula,
-                         weights = weights, sparseX = sparseX)
+                         weights = weights, sparseX = sparseX,
+                         control = glmmTMBControl(conv_check = "skip"))
     fixed.pars <- fit.fixed$obj$env$parList(fit.fixed$fit$par, fit.fixed$fit$parfull)
     nu <- predict(fit.fixed)
     mu <- family$linkinv(nu)
@@ -220,7 +225,7 @@ startParams <- function(parameters,
 ##' @param fr model frame
 ##' @param yobs observed y
 ##' @param respCol response column
-##' @param size number of trials in binomial and betabinomial families
+##' @param weights model weights (for binomial-type models, used as size/number of trials)
 ##' @param family family object
 ##' @param se (logical) compute standard error?
 ##' @param call original \code{glmmTMB} call
@@ -230,6 +235,7 @@ startParams <- function(parameters,
 ##' @param sparseX see \code{\link{glmmTMB}}
 ##' @param old_smooths (optional) smooth components from a previous fit: used when constructing a new model structure for prediction
 ##' from an existing model. A list of smooths for each model component (only cond and zi at present); each smooth has sm and re elements
+##' @param priors see \code{\link{priors}}
 ##' @keywords internal
 mkTMBStruc <- function(formula, ziformula, dispformula,
                        combForm,
@@ -238,9 +244,8 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
                        respCol,
                        ## no conditional offset argument
                        ##  (should be stored in model frame)
-                       weights,
+                       weights = NULL,
                        contrasts,
-                       size=NULL,
                        family,
                        se=NULL,
                        call=NULL,
@@ -253,7 +258,8 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
                        map=NULL,
                        sparseX=NULL,
                        control=glmmTMBControl(),
-                       old_smooths = NULL) {
+                       old_smooths = NULL,
+                       priors = NULL) {
 
 
   if (is.null(sparseX)) sparseX <- logical(0)
@@ -329,10 +335,12 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
 
     grpVar <- with(condList, getGrpVar(reTrms$flist))
 
-    nobs <- nrow(fr)
+   nobs <- nrow(fr)
+    
+   if (is.null(weights)) weights <- rep(1, nobs)
 
-  if (is.null(weights)) weights <- rep(1, nobs)
-
+  size <- numeric(0)
+    
   ## binomial family:
   ## binomial()$initialize was only executed locally
   ## yobs could be a factor -> treat as binary following glm
@@ -352,19 +360,15 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
         size <- yobs[,1] + yobs[,2]
         yobs <- yobs[,1] #successes
       } else {
-      if(all(yobs %in% c(0,1))) { #binary
-        size <- rep(1, nobs)
-      } else { #proportions
-          yobs <- weights * yobs
-          ## FIXME: check for non-integer values? Or does glm()
-          ##  initialization check this already?
+          ## previously tested for binary data
+          ## shouldn't need to do this, as weights is a vector of ones
+          ## by default (see NEWS for 1.1.8-9000/1.1.9)
+          yobs <- weights*yobs
           size <- weights
-          weights <- rep(1, nobs)
-        }
+          weights <- rep(1.0, nobs)
       }
     }
   }
-  if (is.null(size)) size <- numeric(0)
 
 
   denseXval <- function(component,lst) if (sparseX[[component]]) matrix(nrow=0,ncol=0) else lst$X
@@ -372,6 +376,31 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
   sparseXval <- function(component,lst) {
     if (sparseX[[component]]) lst$X else nullSparseMatrix()
   }
+
+  ## don't want to destroy user-specified prior info by writing
+  ##  over; we want the user-spec version in modelInfo
+
+  ## FIXME: would be nice to be able to get this with less info
+  ## (for external testing etc.) but ... ??
+
+    
+  ## isolate names for localizing priors
+  get_fixnm <- function(x) c(colnames(x$X), colnames(x$XS))
+  fix_nms <- list(cond = get_fixnm(condList),
+                  zi = get_fixnm(ziList),
+                  disp = get_fixnm(dispList))
+  comb_re <- function(component) {
+      restruc <- get(paste0(component, "ReStruc"))
+      rList <- get(paste0(component, "List"))
+      res <- lapply(seq_along(restruc), function(i) c(restruc[[i]], list(cnms = rList$reTrms$cnms[[i]])))
+      names(res) <- names(restruc)
+      res
+  }
+
+  re_info <- list(cond = comb_re("cond"), zi = comb_re("zi"))
+
+  ## easy way to get lengths of theta of individual components??
+  prior_struc <- proc_priors(priors, info = list(fix = fix_nms, re = re_info))
 
   data.tmb <- namedList(
     X = denseXval("cond",condList),
@@ -388,12 +417,13 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
     ##  (which confuse MakeADFun)
     yobs = c(yobs),
     respCol,
-    ## strip attributes from offset terms
+    ## strip attributes from various components ...
     offset = c(condList$offset),
     zioffset = c(ziList$offset),
     doffset = c(dispList$offset),
-    weights,
+    weights = c(weights),
     size = c(size),
+    
     ## information about random effects structure
     terms = condReStruc,
     termszi = ziReStruc,
@@ -402,7 +432,10 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
     ziPredictCode = .valid_zipredictcode[ziPredictCode],
     doPredict = doPredict,
     whichPredict = whichPredict
-  )
+    )
+
+    ## add prior info
+    data.tmb <- c(data.tmb, prior_struc)
 
   # function to set value for dorr
   rrVal <- function(lst) if(any(lst$ss == "rr")) 1 else 0
@@ -482,7 +515,7 @@ mkTMBStruc <- function(formula, ziformula, dispformula,
             condList, ziList, dispList, condReStruc, ziReStruc,
             family, contrasts, respCol,
             allForm=namedList(combForm,formula,ziformula,dispformula),
-            fr, se, call, verbose, REML, map, sparseX))
+            fr, se, call, verbose, REML, map, sparseX, priors))
 }
 
 ##' Create X and random effect terms from formula
@@ -579,7 +612,7 @@ getXReTrms <- function(formula, mf, fr, ranOK=TRUE, type="",
                         sm <- eval(bquote(mgcv::smoothCon(.(tt),
                                                           ## don't want intercept etc ...
                                                           absorb.cons = TRUE,
-                                                          data=mf$data)))
+                                                          data=fr)))
                         if (length(sm)>1) stop("can't handle 'by' arguments in smooths yet")
                         sm <- sm[[1]]
                         list(sm = sm,
@@ -742,7 +775,7 @@ getXReTrms <- function(formula, mf, fr, ranOK=TRUE, type="",
             }
             return(res)
         }
-        aa <- ifelse(ss$reTrmClass=="rr",
+        aa <- ifelse(ss$reTrmClasses=="rr",
                      vapply(ss$reTrmAddArgs,
                            get_num,
                            FUN.VALUE=numeric(1)),
@@ -975,6 +1008,7 @@ binomialType <- function(x) {
 ##' @param start starting values, expressed as a list with possible components \code{beta}, \code{betazi}, \code{betad} (fixed-effect parameters for conditional, zero-inflation, dispersion models); \code{b}, \code{bzi} (conditional modes for conditional and zero-inflation models); \code{theta}, \code{thetazi} (random-effect parameters, on the standard deviation/Cholesky scale, for conditional and z-i models); \code{psi} (extra family parameters, e.g., shape for Tweedie models).
 ##' @param map a list specifying which parameter values should be fixed to a constant value rather than estimated. \code{map} should be a named list containing factors corresponding to a subset of the internal parameter names (see \code{start} parameter). Distinct factor values are fitted as separate parameter values, \code{NA} values are held fixed: e.g., \code{map=list(beta=factor(c(1,2,3,NA)))} would fit the first three fixed-effect parameters of the conditional model and fix the fourth parameter to its starting value. In general, users will probably want to use \code{start} to specify non-default starting values for fixed parameters. See \code{\link[TMB]{MakeADFun}} for more details.
 ##' @param sparseX a named logical vector containing (possibly) elements named "cond", "zi", "disp" to indicate whether fixed-effect model matrices for particular model components should be generated as sparse matrices, e.g. \code{c(cond=TRUE)}. Default is all \code{FALSE}
+##' @param priors a data frame of priors, in a similar format to that accepted by the \code{brms} package; see \code{\link{priors}}
 ##' @importFrom stats gaussian binomial poisson nlminb as.formula terms model.weights
 ##' @importFrom lme4 subbars findbars mkReTrms nobars
 ##' @importFrom Matrix t
@@ -1055,7 +1089,7 @@ binomialType <- function(x) {
 ##' dat <- rbind(d1, d2)
 ##' m0 <- glmmTMB(x ~ sd + (1|t), dispformula=~sd, data=dat)
 ##' fixef(m0)$disp
-##' c(log(5^2), log(10^2)-log(5^2)) # expected dispersion model coefficients
+##' c(log(5), log(10)-log(5)) # expected dispersion model coefficients
 ##'
 ##'
 ##' ## Using 'map' to fix random-effects SD to 10
@@ -1088,7 +1122,8 @@ glmmTMB <- function(
     REML=FALSE,
     start=NULL,
     map=NULL,
-    sparseX=NULL
+    sparseX=NULL,
+    priors=NULL
     )
 {
 
@@ -1099,27 +1134,8 @@ glmmTMB <- function(
     ##                       control = glmerControl(), ...) {
     call <- mf <- mc <- match.call()
 
-    if (is.character(family)) {
-        if (family=="beta") {
-            family <- "beta_family"
-            warning("please use ",sQuote("beta_family()")," rather than ",
-                    sQuote("\"beta\"")," to specify a Beta-distributed response")
-        }
-        family <- get(family, mode = "function", envir = parent.frame())
-    }
-
-    if (is.function(family)) {
-        ## call family with no arguments
-        family <- family()
-    }
-
-    ## FIXME: what is this doing? call to a function that's not really
-    ##  a family creation function?
-    if (is.null(family$family)) {
-      print(family)
-      stop("'family' not recognized")
-    }
-
+    family <- get_family(family)
+    
     fnames <- names(family)
     if (!all(c("family","link") %in% fnames))
         stop("'family' must contain at least 'family' and 'link' components")
@@ -1258,6 +1274,11 @@ glmmTMB <- function(
     ##  and then only to check whether it's NULL or not ...
     etastart <- mustart <- NULL
 
+    ## hack initialization method to flag negative values
+    if (family$family == "binomial") {
+        family$initialize <- our_binom_initialize(family$family)
+    }
+    
     if (!is.null(family$initialize)) {
         local(eval(family$initialize))  ## 'local' so it checks but doesn't modify 'y' and 'weights'
     }
@@ -1295,7 +1316,8 @@ glmmTMB <- function(
                    start=start,
                    map=map,
                    sparseX=sparseX,
-                   control=control)
+                   control=control,
+                   priors = priors)
 
     ## Allow for adaptive control parameters
     TMBStruc$control <- lapply(control, eval, envir = TMBStruc)
@@ -1373,7 +1395,8 @@ glmmTMBControl <- function(optCtrl=NULL,
                            collect=FALSE,
                            parallel = getOption("glmmTMB.cores", 1L),
                            eigval_check = TRUE,
-                           zerodisp_val=log(sqrt(.Machine$double.eps)),
+                           ## want variance to be sqrt(eps), so sd = eps^(1/4)
+                           zerodisp_val=log(.Machine$double.eps)/4,
                            start_method = list(method = NULL, jitter.sd = 0),
                            rank_check = c("adjust", "warning", "stop", "skip"),
                            conv_check = c("warning", "skip")) {
@@ -1826,7 +1849,10 @@ finalizeTMB <- function(TMBStruc, obj, fit, h = NULL, data.tmb.old = NULL) {
                                 REML,
                                 map,
                                 sparseX,
-                                parallel = control$parallel))
+                                parallel = control$parallel,
+                                priors = set_class(priors, "glmmTMB_prior"),
+                                packageVersion = packageVersion("glmmTMB")))
+
     ## FIXME: are we including obj and frame or not?
     ##  may want model= argument as in lm() to exclude big stuff from the fit
     ## If we don't include obj we need to get the basic info out
@@ -1936,10 +1962,13 @@ summary.glmmTMB <- function(object,...)
                    family = famL$family, link = famL$link,
 		   ngrps = ngrps(object),
                    nobs = nobs(object),
-		   coefficients = coefs, sigma = sig,
+		   coefficients = coefs,
+                   sigma = sig,
 		   vcov = vcov(object),
 		   varcor = varcor, # and use formatVC(.) for printing.
-		   AICtab = llAIC[["AICtab"]], call = object$call
+		   AICtab = llAIC[["AICtab"]],
+                   call = object$call,
+                   priors = object$modelInfo$priors
                    ## residuals = residuals(object,"pearson",scaled = TRUE),
 		   ## fitMsgs = .merMod.msgs(object),
                    ## optinfo = object@optinfo
@@ -1988,8 +2017,10 @@ print.summary.glmmTMB <- function(x, digits = max(3, getOption("digits") - 3),
                          digits = digits, signif.stars = signif.stars)
         } ## if (p>0)
     }
-
+    if (!is.null(x$prior)) {
+        cat("\nPriors:\n")
+        print(x$prior)
+    }
     invisible(x)
 }## print.summary.glmmTMB
-
 

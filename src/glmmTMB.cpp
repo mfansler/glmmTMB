@@ -1,6 +1,8 @@
+#define EIGEN_DONT_PARALLELIZE // see https://github.com/kaskr/adcomp/issues/390
 #include <TMB.hpp>
 #include "init.h"
 #include "distrib.h"
+#include "cordistrib.h"
 
 // don't need to include omp.h; we get it via TMB.hpp
 
@@ -76,6 +78,30 @@ enum valid_ziPredictCode {
   uncorrected_zipredictcode = 1,
   prob_zipredictcode = 2,
   disp_zipredictcode = 3
+};
+
+// codes for prior distributions
+enum valid_prior {
+  // real-valued
+  normal_prior = 0,
+  t_prior = 1,
+  cauchy_prior = 2,
+  // non-negative
+  gamma_prior = 10,
+  // (0,1), e.g. for zi prob
+  beta_prior = 20,
+  // correlations
+  lkj_prior = 30
+};
+
+// codes for parameter (vec) to apply prior to
+enum valid_vprior {
+  beta_vprior = 0,
+  betazi_vprior = 1,
+  betad_vprior = 2,
+  theta_vprior = 10,
+  thetazi_vprior = 20,
+  psi_vprior = 30
 };
 
 template<class Type>
@@ -581,6 +607,15 @@ Type objective_function<Type>::operator() ()
   // One-Step-Ahead (OSA) residuals
   DATA_VECTOR_INDICATOR(keep, yobs);
 
+  // Prior info
+
+  DATA_IVECTOR(prior_distrib);    // specify distribution
+  DATA_IVECTOR(prior_whichpar);   // specify parameter
+  DATA_IVECTOR(prior_elstart);    // starting element index
+  DATA_IVECTOR(prior_elend);      // ending element index
+  DATA_IVECTOR(prior_npar);       // number of parameters (based on prior distrib)
+  DATA_VECTOR(prior_params);      // specify parameters (concatenated)
+  
   // Joint negative log-likelihood
   Type jnll=0;
 
@@ -642,13 +677,8 @@ Type objective_function<Type>::operator() ()
     if ( !glmmtmb::isNA(yobs(i)) ) {
       switch (family) {
       case gaussian_family:
-	// n.b. sigma() calculation is special-cased for Gaussian
-	// (exp(0.5*pl$betad), all other families except Gamma
-	//  use exp(pl$betad)
-	// so phi = variance, not SD
-	// (FIXME: ?? why ??)
-        tmp_loglik = dnorm(yobs(i), mu(i), sqrt(phi(i)), true);
-        SIMULATE{yobs(i) = rnorm(mu(i), sqrt(phi(i)));}
+        tmp_loglik = dnorm(yobs(i), mu(i), phi(i), true);
+        SIMULATE{yobs(i) = rnorm(mu(i), phi(i));}
         break;
       case poisson_family:
         tmp_loglik = dpois(yobs(i), mu(i), true);
@@ -807,15 +837,18 @@ Type objective_function<Type>::operator() ()
 	// mu = exp(logmu + logsd^2/2)
 	// sd = sqrt((exp(logsd^2)-1)*exp(2*logmu + logsd^2)) = mu*sqrt(exp(logsd^2)-1)
 	// 1+(sd/mu)^2 = exp(logsd^2)
-	// logsd = sqrt(log(1+(sd/mu)^2))
-	// logmu = log(mu)- 
-        s1 = log1p(pow(phi(i)/mu(i), 2.0)); //log1p(x) = log(1 + x), log-scale var
+	// logvar = log(1+(sd/mu)^2)
+	// logsd = sqrt(logvar)
+	// logmu = log(mu)-logvar/2
+	// logvar via logspace_add() [log1p not compatible with CppAD]
+        s1 = logspace_add(2*(log(phi(i))-log(mu(i))), Type(0)); // log-scale var
         s2 = log(mu(i)) - s1/2; //log-scale mean
-        // s2 = log(mu(i)*mu(i)) - log(mu(i)*mu(i) + phi(i)*phi(i))/Type(2.0); //from Wikipedia
-        s3 = sqrt(s1); //log-scale sd
-
-	tmp_loglik = dnorm(log(yobs(i)), s2, s3, true) - log(yobs(i));
-	// FIXME: simulate method?
+        s3 = sqrt(s1);          //log-scale sd
+	tmp_loglik = zt_lik_zero(yobs(i),
+			 dnorm(log(yobs(i)), s2, s3, true) - log(yobs(i)));
+	SIMULATE{
+	  yobs(i) = exp(rnorm(s2, s3));
+	}  // untested
         break;
       case t_family:
         s1 = (yobs(i) - mu(i))/phi(i);
@@ -847,8 +880,76 @@ Type objective_function<Type>::operator() ()
 
       // Add up
       jnll -= keep(i) * tmp_loglik;
-    }
-  }
+    } // if !is.na(obs)
+    } // loop over observations
+
+    // Add priors
+    vector<Type> parvec;
+    int np = prior_distrib.size();
+    Type parval, logpriorval;
+    int par_ind = 0; // parameter index
+    for (int i = 0; i < np; i++) {
+      switch(prior_whichpar[i]) {
+      case beta_vprior: parvec = beta; break;
+      case betazi_vprior: parvec = betazi; break;
+      case betad_vprior: parvec = betad; break;
+      case theta_vprior: parvec = theta; break;
+      case thetazi_vprior: parvec = thetazi; break;
+      case psi_vprior: parvec = psi; break;
+      }
+
+      // need an if-clause here for multivariate distrib (lkj/corr parameters
+      // otherwise go element-by-element
+      if (prior_distrib[i] == lkj_prior) {
+	vector<Type> corpars = parvec.segment(prior_elstart[i] ,
+					      prior_elend[i]-prior_elstart[i]+1);
+	jnll -= glmmtmb::dlkj(corpars, prior_params[par_ind], true);
+      } else {
+	for (int j = prior_elstart[i]; j <= prior_elend[i]; j++) { // <= is on purpose here
+	  if (j >= parvec.size()) {
+	    // FIXME: should also check upstream ...
+	    error("Bad prior index!");
+	  };
+
+	parval = parvec[j];
+	switch(prior_distrib[i]) {
+	case normal_prior:
+	  s1 = prior_params[par_ind];           // mean
+	  s2 = prior_params[par_ind+1];         // sd
+	  logpriorval = dnorm(parval, s1, s2, true);
+	break;
+	case gamma_prior:
+	  s1 = prior_params[par_ind+1];           // shape
+	  s2 = prior_params[par_ind] / prior_params[par_ind+1];   // scale
+	  logpriorval = dgamma(exp(parval), s1, s2, true);
+	break;
+	case t_prior:
+	  s1 = prior_params[par_ind];           // mean
+	  s2 = prior_params[par_ind+1];         // sd
+	  s3 = prior_params[par_ind+2];         // df
+	  parval = (parval - s1)/s2;   // scale value
+	  // see note at t_family about adjusting density for scaling
+	  logpriorval = dt(parval, s3, true) - log(s2);
+	  break;
+	case cauchy_prior:
+	  s1 = prior_params[par_ind];           // loc
+	  s2 = prior_params[par_ind+1];         // scale
+	  logpriorval = glmmtmb::dcauchy(parval, s1, s2, true);
+	break;
+	default:
+	  error("Prior distribution not implemented!");
+	}
+
+	jnll -= logpriorval;
+	
+	} // loop over elements
+      }
+      // step forward in prior-parameter vector
+      par_ind += prior_npar[i];
+      
+    } // loop over priors
+    
+    
 
   // Report / ADreport / Simulate Report
   vector<matrix<Type> > corr(terms.size());
@@ -893,9 +994,6 @@ Type objective_function<Type>::operator() ()
     // predict dispersion
     // zi irrelevant; just reusing variable
     switch(family){
-    case gaussian_family:
-      mu = sqrt(phi);
-      break;
     case Gamma_family:
       mu = 1/sqrt(phi);
       break;
